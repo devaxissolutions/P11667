@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../../core/providers.dart';
+import '../../../../../core/services/notifications/notification_service.dart';
 import '../../../../../core/utils/type_defs.dart';
 import '../../../../../data/models/quote_model.dart';
 import '../../../../auth/controllers/auth_controller.dart';
@@ -91,7 +92,16 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
 
       final result = await quoteRepo.addQuote(newQuote);
 
-      if (result is Success) {
+      if (result is Success<String>) {
+        final quoteId = result.data;
+        // Send notification
+        await NotificationService().sendNewQuoteNotification(
+          quoteId,
+          newQuote.text,
+          newQuote.author,
+          authState.user.id,
+        );
+
         // Clear form first
         _quoteController.clear();
         setState(() => _selectedCategory = null);
@@ -103,7 +113,7 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) context.pop();
         });
-      } else if (result is Error) {
+      } else if (result is Error<String>) {
         _showSnackBar(result.failure.message, isError: true);
       }
     } catch (e) {
