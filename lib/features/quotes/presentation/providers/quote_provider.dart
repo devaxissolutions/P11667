@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:dev_quotes/data/models/category_model.dart';
@@ -40,7 +41,10 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
 
       if (authState is! AuthAuthenticated) {
         // If not authenticated, show public quotes
-        final publicQuotes = await repository.getPublicQuotes().first;
+        final publicQuotes = await repository.getPublicQuotes().first.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => <Quote>[],
+        );
         state = AsyncValue.data(
           publicQuotes.take(10).toList(),
         ); // Limit to 10 for home
@@ -49,13 +53,17 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
 
       if (showPublicQuotes) {
         // Show all public quotes
-        final publicQuotes = await repository.getPublicQuotes().first;
+        final publicQuotes = await repository.getPublicQuotes().first.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => <Quote>[],
+        );
         state = AsyncValue.data(publicQuotes.take(10).toList());
       } else {
         // Show only user's quotes
         final userQuotes = await repository
             .getUserQuotes(authState.user.id)
-            .first;
+            .first
+            .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]);
         state = AsyncValue.data(userQuotes.take(10).toList());
       }
     } catch (e, st) {

@@ -172,8 +172,27 @@ class AuthRepositoryImpl implements AuthRepository {
   Stream<User?> get authStateChanges {
     return _authDataSource.authStateChanges.asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
-      final userDto = await _firestoreDataSource.getUser(firebaseUser.uid);
-      return userDto != null ? UserMapper.toDomain(userDto) : null;
+      try {
+        final userDto = await _firestoreDataSource.getUser(firebaseUser.uid);
+        if (userDto != null) {
+          await _localDataSource.cacheUser(userDto);
+          return UserMapper.toDomain(userDto);
+        } else {
+          // If not in Firestore, try local cache
+          final cached = await _localDataSource.getLastUser();
+          if (cached != null && cached.id == firebaseUser.uid) {
+            return UserMapper.toDomain(cached);
+          }
+          return null;
+        }
+      } catch (e) {
+        // Offline or error, use cache
+        final cached = await _localDataSource.getLastUser();
+        if (cached != null && cached.id == firebaseUser.uid) {
+          return UserMapper.toDomain(cached);
+        }
+        return null;
+      }
     });
   }
 }
