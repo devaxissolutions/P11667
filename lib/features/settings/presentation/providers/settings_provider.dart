@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../../../core/providers.dart';
 import '../../../auth/controllers/auth_controller.dart';
 import '../../../auth/models/auth_state.dart';
@@ -47,8 +46,19 @@ class SettingsNotifier extends Notifier<SettingsState> {
           'showPublicQuotes',
           showPublicQuotes,
         );
+        final notificationsFromFirestore = await firestore.getUserPreference(
+          authState.user.id,
+          'notificationsEnabled',
+          notificationsEnabled,
+        );
         // Update local cache
         await prefs.setBool(_showPublicQuotesKey, showPublicQuotes);
+        await prefs.setBool(_notificationsKey, notificationsFromFirestore);
+        state = SettingsState(
+          notificationsEnabled: notificationsFromFirestore,
+          showPublicQuotes: showPublicQuotes,
+        );
+        return;
       } catch (e) {
         // Fall back to local
       }
@@ -95,28 +105,21 @@ class SettingsNotifier extends Notifier<SettingsState> {
 
   Future<void> _updateNotificationSettings(bool value) async {
     try {
-      final messaging = ref.read(firebaseMessagingProvider);
       final prefs = ref.read(sharedPreferencesProvider);
 
-      if (value) {
-        // Request permission for notifications
-        final settings = await messaging.requestPermission(
-          alert: true,
-          badge: true,
-          sound: true,
+      // Update Firestore preference
+      final authAsync = ref.read(authProvider);
+      final authState = authAsync.value;
+      if (authState is AuthAuthenticated) {
+        final firestore = ref.read(firestoreDataSourceProvider);
+        await firestore.setUserPreference(
+          authState.user.id,
+          'notificationsEnabled',
+          value,
         );
-
-        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-            settings.authorizationStatus == AuthorizationStatus.provisional) {
-          // Get FCM token
-          await messaging.getToken();
-        }
-      } else {
-        // Delete FCM token to stop receiving notifications
-        await messaging.deleteToken();
       }
 
-      // Save preference
+      // Save to local cache
       await prefs.setBool(_notificationsKey, value);
     } catch (e) {
       // Handle error silently

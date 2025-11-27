@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
@@ -49,6 +50,10 @@ final onboardingCompletedProvider = Provider<bool>((ref) {
 final connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
   final connectivity = Connectivity();
   return connectivity.onConnectivityChanged;
+});
+
+final navigatorKeyProvider = Provider<GlobalKey<NavigatorState>>((ref) {
+  return GlobalKey<NavigatorState>();
 });
 
 // Data Sources

@@ -210,12 +210,25 @@ final searchResultsProvider = FutureProvider<List<Quote>>((ref) async {
   return filtered;
 });
 
+// Provider for single quote by ID
+final quoteByIdProvider = FutureProvider.family<Quote?, String>((
+  ref,
+  quoteId,
+) async {
+  final repository = ref.watch(quoteRepositoryProvider);
+  final result = await repository.getQuoteById(quoteId);
+  if (result is Success<Quote>) {
+    return result.data;
+  }
+  return null;
+});
+
 // Categories
 final categoriesProvider = FutureProvider<List<String>>((ref) async {
-  final categoryRepository = ref.watch(categoryRepositoryProvider);
-  final result = await categoryRepository.getCategories();
+  final categoryRepo = ref.watch(categoryRepositoryProvider);
+  final result = await categoryRepo.getCategories();
   if (result is Success<List<Category>>) {
-    return result.data.map((c) => c.name).toSet().toList();
+    return result.data.map((c) => c.name).toList();
   }
   return [];
 });
