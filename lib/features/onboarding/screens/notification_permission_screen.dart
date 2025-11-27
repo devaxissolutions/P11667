@@ -20,10 +20,12 @@ class NotificationPermissionScreen extends StatefulWidget {
   });
 
   @override
-  State<NotificationPermissionScreen> createState() => _NotificationPermissionScreenState();
+  State<NotificationPermissionScreen> createState() =>
+      _NotificationPermissionScreenState();
 }
 
-class _NotificationPermissionScreenState extends State<NotificationPermissionScreen> {
+class _NotificationPermissionScreenState
+    extends State<NotificationPermissionScreen> {
   final NotificationService _notificationService = NotificationService();
   bool _isRequesting = false;
   bool _isPermanentlyDenied = false;
@@ -58,7 +60,8 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
         return;
       }
 
-      final granted = await _notificationService.requestNotificationPermission();
+      final granted = await _notificationService
+          .requestNotificationPermission();
 
       if (mounted) {
         if (granted) {
@@ -89,7 +92,9 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
             // Show error message for denied
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('Notification permission denied. You can enable it later in settings.'),
+                content: const Text(
+                  'Notification permission denied. You can enable it later in settings.',
+                ),
                 backgroundColor: AppColors.error,
                 behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 3),
@@ -123,7 +128,9 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
         await _checkPermissionStatus();
       }
     }
-  }  Future<void> _showSettingsDialog() async {
+  }
+
+  Future<void> _showSettingsDialog() async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -142,7 +149,9 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
             TextButton(
               child: Text(
                 'Skip',
-                style: AppTypography.buttonText.copyWith(color: AppColors.textSecondary),
+                style: AppTypography.buttonText.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               onPressed: () {
                 Navigator.of(context).pop();
@@ -152,7 +161,9 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
             TextButton(
               child: Text(
                 'Open Settings',
-                style: AppTypography.buttonText.copyWith(color: AppColors.primary),
+                style: AppTypography.buttonText.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
               onPressed: () async {
                 Navigator.of(context).pop();
@@ -246,7 +257,9 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
               PrimaryButton(
                 text: _isPermanentlyDenied
                     ? 'Open Settings'
-                    : (_isRequesting ? 'Requesting...' : 'Enable Notifications'),
+                    : (_isRequesting
+                          ? 'Requesting...'
+                          : 'Enable Notifications'),
                 onPressed: _isRequesting ? () {} : _handleEnableNotifications,
               ),
 
@@ -258,7 +271,7 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
                 child: Text(
                   'Skip for now',
                   style: AppTypography.body2.copyWith(
-                    color: _isRequesting 
+                    color: _isRequesting
                         ? AppColors.textSecondary.withOpacity(0.5)
                         : AppColors.textSecondary,
                   ),
