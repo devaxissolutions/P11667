@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
 import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
@@ -43,6 +44,11 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 final onboardingCompletedProvider = Provider<bool>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return prefs.getBool('onboarding_completed') ?? false;
+});
+
+final connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
+  final connectivity = Connectivity();
+  return connectivity.onConnectivityChanged;
 });
 
 // Data Sources

@@ -25,7 +25,7 @@ void main() async {
     // and Google Sign-In provider to be enabled to generate OAuth client IDs
     // Register background handler for Firebase Messaging
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    // Request permission and get token (best-effort)
+    // Request permission and get token (best-effort, non-blocking)
     final firebaseService = FirebaseService();
     try {
       final token = await firebaseService.requestPermissionAndGetToken();
@@ -33,10 +33,9 @@ void main() async {
         // If a user is already signed in, attach the token to their user doc
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          await firebaseService.attachTokenToUser(
-            userId: user.uid,
-            token: token,
-          );
+          firebaseService
+              .attachTokenToUser(userId: user.uid, token: token)
+              .catchError((e) => debugPrint('Attach token error: $e'));
         }
       }
       // Listen for token refreshes and attach them when available
@@ -44,10 +43,9 @@ void main() async {
         if (newToken != null) {
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
-            await firebaseService.attachTokenToUser(
-              userId: user.uid,
-              token: newToken,
-            );
+            firebaseService
+                .attachTokenToUser(userId: user.uid, token: newToken)
+                .catchError((e) => debugPrint('Attach token error: $e'));
           }
         }
       });
