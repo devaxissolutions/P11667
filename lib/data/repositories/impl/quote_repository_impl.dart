@@ -67,10 +67,12 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
-  Future<Result<void>> addQuote(Quote quote) async {
+  Future<Result<String>> addQuote(Quote quote) async {
     try {
-      await _firestoreDataSource.addQuote(QuoteMapper.fromDomain(quote));
-      return const Success(null);
+      final id = await _firestoreDataSource.addQuote(
+        QuoteMapper.fromDomain(quote),
+      );
+      return Success(id);
     } catch (e) {
       return Error(ServerFailure(e.toString()));
     }
@@ -132,10 +134,13 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
-  Future<Result<List<Quote>>> getQuotesByCategory(String categoryId) async {
+  Future<Result<Quote>> getQuoteById(String quoteId) async {
     try {
-      final dtos = await _firestoreDataSource.getQuotesByCategory(categoryId);
-      return Success(dtos.map((dto) => QuoteMapper.toDomain(dto)).toList());
+      final dto = await _firestoreDataSource.getQuoteById(quoteId);
+      if (dto == null) {
+        return Error(ServerFailure('Quote not found'));
+      }
+      return Success(QuoteMapper.toDomain(dto));
     } catch (e) {
       return Error(ServerFailure(e.toString()));
     }
