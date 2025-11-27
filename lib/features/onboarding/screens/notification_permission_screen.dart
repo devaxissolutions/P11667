@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -25,6 +26,23 @@ class NotificationPermissionScreen extends StatefulWidget {
 class _NotificationPermissionScreenState extends State<NotificationPermissionScreen> {
   final NotificationService _notificationService = NotificationService();
   bool _isRequesting = false;
+  bool _isPermanentlyDenied = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissionStatus();
+  }
+
+  Future<void> _checkPermissionStatus() async {
+    // Check if permission is permanently denied to show appropriate UI
+    final status = await Permission.notification.status;
+    if (mounted) {
+      setState(() {
+        _isPermanentlyDenied = status.isPermanentlyDenied;
+      });
+    }
+  }
 
   Future<void> _handleEnableNotifications() async {
     if (_isRequesting) return;
@@ -34,8 +52,14 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
     });
 
     try {
+      // If permanently denied, go directly to settings
+      if (_isPermanentlyDenied) {
+        await _showSettingsDialog();
+        return;
+      }
+
       final granted = await _notificationService.requestNotificationPermission();
-      
+
       if (mounted) {
         if (granted) {
           // Show success message
@@ -47,26 +71,37 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
               duration: const Duration(seconds: 2),
             ),
           );
-          
+
           // Wait a bit for the user to see the message
           await Future.delayed(const Duration(milliseconds: 500));
-          
+
           // Complete onboarding
           widget.onEnableNotifications();
         } else {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Notification permission denied. You can enable it later in settings.'),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-          
-          // Still complete onboarding even if denied
-          await Future.delayed(const Duration(milliseconds: 500));
-          widget.onEnableNotifications();
+          // Check if now permanently denied after the request
+          final status = await Permission.notification.status;
+          final isPermanentlyDenied = status.isPermanentlyDenied;
+
+          if (isPermanentlyDenied) {
+            // Show dialog to go to settings
+            await _showSettingsDialog();
+          } else {
+            // Show error message for denied
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Notification permission denied. You can enable it later in settings.'),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+
+            // Still complete onboarding even if denied
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (mounted) {
+              widget.onEnableNotifications();
+            }
+          }
         }
       }
     } catch (e) {
@@ -84,8 +119,52 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
         setState(() {
           _isRequesting = false;
         });
+        // Re-check permission status
+        await _checkPermissionStatus();
       }
     }
+  }  Future<void> _showSettingsDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'Notification Permission Required',
+            style: AppTypography.h3.copyWith(color: AppColors.textPrimary),
+          ),
+          content: Text(
+            'To receive daily quote notifications, please enable notifications in your device settings.',
+            style: AppTypography.body2.copyWith(color: AppColors.textSecondary),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Skip',
+                style: AppTypography.buttonText.copyWith(color: AppColors.textSecondary),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                widget.onEnableNotifications();
+              },
+            ),
+            TextButton(
+              child: Text(
+                'Open Settings',
+                style: AppTypography.buttonText.copyWith(color: AppColors.primary),
+              ),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await openAppSettings();
+                // After returning from settings, complete onboarding
+                widget.onEnableNotifications();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -165,7 +244,9 @@ class _NotificationPermissionScreenState extends State<NotificationPermissionScr
 
               // Enable button
               PrimaryButton(
-                text: _isRequesting ? 'Requesting...' : 'Enable Notifications',
+                text: _isPermanentlyDenied
+                    ? 'Open Settings'
+                    : (_isRequesting ? 'Requesting...' : 'Enable Notifications'),
                 onPressed: _isRequesting ? () {} : _handleEnableNotifications,
               ),
 
