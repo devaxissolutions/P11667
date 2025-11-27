@@ -6,14 +6,14 @@ class QuoteActionBar extends ConsumerWidget {
   final bool isFavorite;
   final VoidCallback onFavorite;
   final VoidCallback onShare;
-  final VoidCallback onShuffle;
+  final VoidCallback? onShuffle;
 
   const QuoteActionBar({
     super.key,
     required this.isFavorite,
     required this.onFavorite,
     required this.onShare,
-    required this.onShuffle,
+    this.onShuffle,
   });
 
   @override
@@ -32,12 +32,14 @@ class QuoteActionBar extends ConsumerWidget {
           color: AppColors.textSecondary,
           onTap: onShare,
         ),
-        const SizedBox(width: 24),
-        _ActionButton(
-          icon: Icons.shuffle,
-          color: AppColors.textSecondary,
-          onTap: onShuffle,
-        ),
+        if (onShuffle != null) ...[
+          const SizedBox(width: 24),
+          _ActionButton(
+            icon: Icons.shuffle,
+            color: AppColors.textSecondary,
+            onTap: onShuffle!,
+          ),
+        ],
       ],
     );
   }
@@ -62,9 +64,7 @@ class _ActionButton extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor: AppColors.surface,
         padding: const EdgeInsets.all(16),
-        shape: const CircleBorder(
-          side: BorderSide(color: AppColors.divider),
-        ),
+        shape: const CircleBorder(side: BorderSide(color: AppColors.divider)),
       ),
     );
   }
