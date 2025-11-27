@@ -125,6 +125,12 @@ flutter test
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Author
+
+- **Name**: DevAxis Solutions
+- **Email**: devaxissoolutions@gmail.com
+- **Website**: [devaxissolutions.tech](https://devaxissolutions.tech)
+
 ## Acknowledgments
 
 - Built with [Flutter](https://flutter.dev/)
