@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
 
 class GoogleSignInButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
+  final String text;
 
   const GoogleSignInButton({
     super.key,
     this.onPressed,
     this.isLoading = false,
+    this.text = 'Continue with Google',
   });
 
   @override
@@ -21,10 +24,7 @@ class GoogleSignInButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          side: BorderSide(
-            color: AppColors.divider,
-            width: 1,
-          ),
+          side: BorderSide(color: AppColors.divider, width: 1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -41,27 +41,14 @@ class GoogleSignInButton extends StatelessWidget {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
+                  SvgPicture.asset(
+                    'assets/images/google_logo.svg',
                     width: 24,
                     height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'G',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Continue with Google',
+                    text,
                     style: AppTypography.buttonText.copyWith(
                       color: AppColors.textPrimary,
                     ),

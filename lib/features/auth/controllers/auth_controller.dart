@@ -18,13 +18,16 @@ class AuthNotifier extends StreamNotifier<AuthState> {
   }
 
   Future<void> login(String email, String password) async {
-    state = const AsyncValue.data(AuthLoading());
+    state = const AsyncValue.data(AuthLoading(AuthMethod.email));
 
     try {
       final repository = ref.read(authRepositoryProvider);
       final result = await repository.login(email, password);
 
       if (result is Success) {
+        // Mark onboarding as completed when user logs in
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setBool('onboarding_completed', true);
         // The stream will update the state
       } else if (result is Error) {
         state = AsyncValue.data(AuthError((result as Error).failure.message));
@@ -37,7 +40,7 @@ class AuthNotifier extends StreamNotifier<AuthState> {
   }
 
   Future<void> signup(String name, String email, String password) async {
-    state = const AsyncValue.data(AuthLoading());
+    state = const AsyncValue.data(AuthLoading(AuthMethod.signup));
 
     try {
       final repository = ref.read(authRepositoryProvider);
@@ -45,6 +48,9 @@ class AuthNotifier extends StreamNotifier<AuthState> {
       final result = await repository.signup(email, password, name);
 
       if (result is Success) {
+        // Mark onboarding as completed when user signs up
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setBool('onboarding_completed', true);
         // The stream will update the state
       } else if (result is Error) {
         state = AsyncValue.data(AuthError((result as Error).failure.message));
@@ -57,13 +63,16 @@ class AuthNotifier extends StreamNotifier<AuthState> {
   }
 
   Future<void> signInWithGoogle() async {
-    state = const AsyncValue.data(AuthLoading());
+    state = const AsyncValue.data(AuthLoading(AuthMethod.google));
 
     try {
       final repository = ref.read(authRepositoryProvider);
       final result = await repository.signInWithGoogle();
 
       if (result is Success) {
+        // Mark onboarding as completed when user signs in with Google
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setBool('onboarding_completed', true);
         // The stream will update the state
       } else if (result is Error) {
         state = AsyncValue.data(AuthError((result as Error).failure.message));

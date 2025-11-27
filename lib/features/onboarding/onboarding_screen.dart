@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
+import 'package:dev_quotes/features/auth/models/auth_state.dart';
 import 'controllers/onboarding_controller.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/daily_quotes_screen.dart';
@@ -23,6 +26,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _checkOnboardingCompleted();
+  }
+
+  Future<void> _checkOnboardingCompleted() async {
+    final authAsync = ref.read(authProvider);
+    final authState = authAsync.value;
+    if (authState is AuthAuthenticated) {
+      if (mounted) {
+        context.go('/home');
+      }
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('onboarding_completed') ?? false;
+    if (completed && mounted) {
+      context.go('/auth');
+    }
   }
 
   @override
@@ -101,4 +122,3 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 }
-

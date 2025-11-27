@@ -56,7 +56,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       }
     });
 
-    final isLoading = authState is AuthLoading || authAsync.isLoading;
+    AuthMethod authLoadingAction = AuthMethod.none;
+    if (authState is AuthLoading) {
+      authLoadingAction = authState.action;
+    }
+    final isLoading = authLoadingAction == AuthMethod.email;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -128,10 +132,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
         // Google sign-in button
         GoogleSignInButton(
+          text: 'Sign in with Google',
           onPressed: () {
             ref.read(authProvider.notifier).signInWithGoogle();
           },
-          isLoading: isLoading,
+          isLoading: authLoadingAction == AuthMethod.google,
         ),
 
         const SizedBox(height: 24),

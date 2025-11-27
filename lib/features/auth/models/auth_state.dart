@@ -1,5 +1,7 @@
 import 'package:dev_quotes/data/models/user_model.dart';
 
+enum AuthMethod { none, email, signup, google, logout }
+
 sealed class AuthState {
   const AuthState();
 }
@@ -9,7 +11,9 @@ class AuthInitial extends AuthState {
 }
 
 class AuthLoading extends AuthState {
-  const AuthLoading();
+  final AuthMethod action;
+
+  const AuthLoading([this.action = AuthMethod.none]);
 }
 
 class AuthAuthenticated extends AuthState {

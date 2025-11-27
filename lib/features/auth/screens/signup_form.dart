@@ -7,6 +7,8 @@ import '../controllers/auth_controller.dart';
 import '../models/auth_state.dart';
 import '../utils/validators.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/auth_divider.dart';
+import '../widgets/google_sign_in_button.dart';
 
 class SignupForm extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToLogin;
@@ -63,7 +65,11 @@ class _SignupFormState extends ConsumerState<SignupForm> {
       }
     });
 
-    final isLoading = authState is AuthLoading || authAsync.isLoading;
+    AuthMethod authLoadingAction = AuthMethod.none;
+    if (authState is AuthLoading) {
+      authLoadingAction = authState.action;
+    }
+    final isLoading = authLoadingAction == AuthMethod.signup;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,6 +145,22 @@ class _SignupFormState extends ConsumerState<SignupForm> {
           text: 'Sign Up',
           onPressed: isLoading ? null : _validateAndSubmit,
           isLoading: isLoading,
+        ),
+
+        const SizedBox(height: 24),
+
+        // Divider
+        const AuthDivider(),
+
+        const SizedBox(height: 24),
+
+        // Google sign-in button
+        GoogleSignInButton(
+          text: 'Sign up with Google',
+          onPressed: () {
+            ref.read(authProvider.notifier).signInWithGoogle();
+          },
+          isLoading: authLoadingAction == AuthMethod.google,
         ),
 
         const SizedBox(height: 24),

@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
 import 'package:dev_quotes/features/auth/models/auth_state.dart';
+import 'package:dev_quotes/core/providers.dart';
 
-import '../features/splash/splash_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/auth/screens/auth_screen.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
@@ -27,44 +27,54 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/loading',
     refreshListenable: notifier,
     redirect: (context, state) {
       final authAsync = ref.read(authProvider);
       final authState = authAsync.value;
       final isLoggedIn = authState is AuthAuthenticated;
       final isLoggingIn = state.matchedLocation.startsWith('/auth');
-      final isSplash = state.matchedLocation == '/splash';
       final isOnboarding = state.matchedLocation == '/onboarding';
+      final isLoading = state.matchedLocation == '/loading';
 
-      // If loading or initial, maybe stay on splash?
+      // Read directly from prefs to get the latest value
+      final prefs = ref.read(sharedPreferencesProvider);
+      final onboardingCompleted =
+          prefs.getBool('onboarding_completed') ?? false;
+
+      // If loading or initial, stay
       if (authState is AuthInitial ||
           authState is AuthLoading ||
           authAsync.isLoading) {
-        // If we are already on splash, stay there.
-        // If we are somewhere else, maybe go to splash?
-        // But AuthLoading happens during login too.
-        // If we are logging in (on auth screen) and loading, stay there.
-        if (isLoggingIn) return null;
         return null;
       }
 
-      if (isSplash) {
-        // Let splash screen handle its own navigation
-        // Don't auto-redirect, allow the animation to play
+      if (isLoading) {
+        if (isLoggedIn) return '/home';
+        return onboardingCompleted ? '/auth' : '/onboarding';
+      }
+
+      // If logged in, prevent access to auth and onboarding pages
+      if (isLoggedIn) {
+        if (isLoggingIn || isOnboarding) return '/home';
         return null;
       }
 
-      if (!isLoggedIn && !isLoggingIn && !isOnboarding) return '/auth';
-
-      if (isLoggedIn && (isLoggingIn || isOnboarding)) return '/home';
+      // If not logged in
+      if (!onboardingCompleted) {
+        if (!isOnboarding) return '/onboarding';
+      } else {
+        // Onboarding completed, but not logged in
+        if (!isLoggingIn) return '/auth';
+      }
 
       return null;
     },
     routes: [
       GoRoute(
-        path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        path: '/loading',
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
       GoRoute(
         path: '/onboarding',
