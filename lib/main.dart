@@ -4,13 +4,16 @@ import 'core/theme/theme.dart';
 import 'routes/app_router.dart';
 
 import 'package:dev_quotes/core/providers.dart';
-import 'package:dev_quotes/core/services/firebase_service.dart';
+import 'package:dev_quotes/core/services/notifications/notification_service.dart';
 import 'package:dev_quotes/core/utils/seed_data.dart';
 import 'package:dev_quotes/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+
+// Global navigator key for notifications
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,43 +28,10 @@ void main() async {
     // and Google Sign-In provider to be enabled to generate OAuth client IDs
     // Register background handler for Firebase Messaging
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    // Request permission and get token (best-effort, non-blocking)
-    final firebaseService = FirebaseService();
-    try {
-      final token = await firebaseService.requestPermissionAndGetToken();
-      if (token != null) {
-        // If a user is already signed in, attach the token to their user doc
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          firebaseService
-              .attachTokenToUser(userId: user.uid, token: token)
-              .catchError((e) => debugPrint('Attach token error: $e'));
-        }
-      }
-      // Listen for token refreshes and attach them when available
-      firebaseService.tokenStream.listen((newToken) async {
-        if (newToken != null) {
-          final user = FirebaseAuth.instance.currentUser;
-          if (user != null) {
-            firebaseService
-                .attachTokenToUser(userId: user.uid, token: newToken)
-                .catchError((e) => debugPrint('Attach token error: $e'));
-          }
-        }
-      });
-      // Foreground message handling
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        // ignore: avoid_print
-        print('FCM foreground message: ${message.messageId}');
-      });
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        // handle deep link or navigation if desired
-        // ignore: avoid_print
-        print('FCM opened app from message: ${message.messageId}');
-      });
-    } catch (e) {
-      debugPrint('FCM init error: $e');
-    }
+
+    // Initialize notifications
+    await NotificationService().initialize();
+    NotificationService().setNavigatorKey(navigatorKey);
   } catch (e) {
     debugPrint('Firebase init failed: $e');
   }
