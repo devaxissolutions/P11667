@@ -19,14 +19,16 @@ import '../features/settings/presentation/screens/settings_screen.dart';
 import '../features/settings/presentation/screens/profile/profile_screen.dart';
 import '../features/settings/presentation/screens/add_quote/add_quote_screen.dart';
 import '../features/settings/presentation/screens/about/about_screen.dart';
+import '../features/quotes/presentation/screens/quote_detail_screen.dart';
+import '../features/my_quotes/presentation/screens/my_quotes_screen.dart';
 import '../features/settings/presentation/screens/policy/privacy_policy_screen.dart';
 import '../features/settings/presentation/screens/terms/terms_of_service_screen.dart';
-import '../features/my_quotes/presentation/screens/my_quotes_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
+    navigatorKey: ref.watch(navigatorKeyProvider),
     initialLocation: '/loading',
     refreshListenable: notifier,
     redirect: (context, state) {
@@ -103,6 +105,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/my-quotes',
         builder: (context, state) => const MyQuotesScreen(),
+      ),
+      GoRoute(
+        path: '/quote/:id',
+        builder: (context, state) {
+          final quoteId = state.pathParameters['id']!;
+          return QuoteDetailScreen(quoteId: quoteId);
+        },
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
