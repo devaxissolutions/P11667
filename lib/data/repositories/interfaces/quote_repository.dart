@@ -9,12 +9,12 @@ abstract class QuoteRepository {
     String? category,
     String? author,
   });
-  Future<Result<void>> addQuote(Quote quote);
+  Future<Result<String>> addQuote(Quote quote);
   Future<Result<void>> updateQuote(Quote quote);
   Stream<List<Quote>> getFavorites(String userId);
   Stream<List<Quote>> getUserQuotes(String userId);
   Stream<List<Quote>> getPublicQuotes();
   Future<Result<void>> addFavorite(String quoteId, String userId);
   Future<Result<void>> removeFavorite(String quoteId, String userId);
-  Future<Result<List<Quote>>> getQuotesByCategory(String categoryId);
+  Future<Result<Quote>> getQuoteById(String quoteId);
 }
