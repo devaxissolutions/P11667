@@ -9,12 +9,12 @@ abstract class FirestoreDataSource {
   Future<void> updateUser(UserDto user);
 
   Future<QuoteDto> getRandomQuote();
-  Future<QuoteDto?> getQuote(String id);
+  Future<QuoteDto?> getQuoteById(String id);
   Future<List<QuoteDto>> getQuotesByIds(List<String> ids);
   Future<List<QuoteDto>> getQuotesByCategory(String categoryId);
   Future<List<CategoryDto>> getCategories();
   Future<List<QuoteDto>> searchQuotes(String query);
-  Future<void> addQuote(QuoteDto quote);
+  Future<String> addQuote(QuoteDto quote);
   Future<void> updateQuote(QuoteDto quote);
   Stream<List<QuoteDto>> getUserQuotes(String userId);
   Stream<List<QuoteDto>> getPublicQuotes();
@@ -66,7 +66,7 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
   }
 
   @override
-  Future<QuoteDto?> getQuote(String id) async {
+  Future<QuoteDto?> getQuoteById(String id) async {
     final doc = await _firestore.collection('quotes').doc(id).get();
     if (doc.exists) {
       return QuoteDto.fromFirestore(doc);
@@ -122,7 +122,7 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
   }
 
   @override
-  Future<void> addQuote(QuoteDto quote) async {
+  Future<String> addQuote(QuoteDto quote) async {
     // If ID is empty, generate one
     var docRef = _firestore
         .collection('quotes')
@@ -132,6 +132,7 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
     // then return the ID. But for now, we assume ID is handled or we set it.
     // Let's just set the data.
     await docRef.set(quote.toFirestore());
+    return docRef.id;
   }
 
   @override
