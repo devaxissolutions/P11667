@@ -11,6 +11,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 
 // Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -18,11 +19,21 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Declare startupTrace variable
+  Trace? startupTrace;
+
   try {
     // Initialize Firebase with generated options
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Enable Firebase Performance Monitoring
+    await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
+
+    // Start app startup trace after Firebase is initialized
+    startupTrace = FirebasePerformance.instance.newTrace("app_startup_time");
+    await startupTrace.start();
 
     // Note: GoogleSignIn requires SHA fingerprints to be added to Firebase Console
     // and Google Sign-In provider to be enabled to generate OAuth client IDs
@@ -57,6 +68,11 @@ void main() async {
       child: const DevQuoteApp(),
     ),
   );
+
+  // Stop startup trace after app is launched, if it was started
+  if (startupTrace != null) {
+    await startupTrace.stop();
+  }
 }
 
 class DevQuoteApp extends ConsumerWidget {

@@ -7,6 +7,7 @@ import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
 import 'package:dev_quotes/features/auth/models/auth_state.dart';
 import 'package:dev_quotes/features/settings/presentation/providers/settings_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dev_quotes/core/performance/perf_service.dart';
 
 // State for the list of quotes (Home Screen)
 class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
@@ -41,9 +42,12 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
 
       if (authState is! AuthAuthenticated) {
         // If not authenticated, show public quotes
-        final publicQuotes = await repository.getPublicQuotes().first.timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => <Quote>[],
+        final publicQuotes = await PerfService.trace(
+          "load_quotes_trace",
+          () async => await repository.getPublicQuotes().first.timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <Quote>[],
+          ),
         );
         state = AsyncValue.data(
           publicQuotes.take(10).toList(),
@@ -53,17 +57,23 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
 
       if (showPublicQuotes) {
         // Show all public quotes
-        final publicQuotes = await repository.getPublicQuotes().first.timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => <Quote>[],
+        final publicQuotes = await PerfService.trace(
+          "load_quotes_trace",
+          () async => await repository.getPublicQuotes().first.timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <Quote>[],
+          ),
         );
         state = AsyncValue.data(publicQuotes.take(10).toList());
       } else {
         // Show only user's quotes
-        final userQuotes = await repository
-            .getUserQuotes(authState.user.id)
-            .first
-            .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]);
+        final userQuotes = await PerfService.trace(
+          "load_quotes_trace",
+          () async => await repository
+              .getUserQuotes(authState.user.id)
+              .first
+              .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]),
+        );
         state = AsyncValue.data(userQuotes.take(10).toList());
       }
     } catch (e, st) {
@@ -192,7 +202,10 @@ final searchResultsProvider = FutureProvider<List<Quote>>((ref) async {
   final repository = ref.watch(quoteRepositoryProvider);
 
   // Always fetch public quotes
-  final publicQuotesResult = await repository.getPublicQuotes().first;
+  final publicQuotesResult = await PerfService.trace(
+    "search_quotes_trace",
+    () async => await repository.getPublicQuotes().first,
+  );
   final publicQuotes = publicQuotesResult;
 
   if (query.isEmpty) {
