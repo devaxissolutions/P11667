@@ -39,15 +39,14 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
     if (_emailError == null && _passwordError == null) {
       ref
-          .read(authProvider.notifier)
+          .read(loginControllerProvider.notifier)
           .login(_emailController.text, _passwordController.text);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authAsync = ref.watch(authProvider);
-    final authState = authAsync.value;
+    final loginAsync = ref.watch(loginControllerProvider);
 
     // Navigate to home on successful login
     ref.listen(authProvider, (previous, next) {
@@ -56,11 +55,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       }
     });
 
-    AuthMethod authLoadingAction = AuthMethod.none;
-    if (authState is AuthLoading) {
-      authLoadingAction = authState.action;
-    }
-    final isLoading = authLoadingAction == AuthMethod.email;
+    final isLoading = loginAsync.isLoading;
+    final errorMessage = loginAsync.value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,7 +96,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         const SizedBox(height: 32),
 
         // Error message
-        if (authState is AuthError) ...[
+        if (errorMessage != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -108,7 +104,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              authState.message,
+              errorMessage,
               style: AppTypography.body2.copyWith(color: AppColors.error),
               textAlign: TextAlign.center,
             ),
@@ -134,9 +130,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         GoogleSignInButton(
           text: 'Sign in with Google',
           onPressed: () {
-            ref.read(authProvider.notifier).signInWithGoogle();
+            ref.read(loginControllerProvider.notifier).signInWithGoogle();
           },
-          isLoading: authLoadingAction == AuthMethod.google,
+          isLoading: loginAsync.isLoading,
         ),
 
         const SizedBox(height: 24),

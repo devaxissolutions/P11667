@@ -4,15 +4,17 @@ import '../../../core/theme/typography.dart';
 import '../widgets/auth_tab_selector.dart';
 import 'login_form.dart';
 import 'signup_form.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../controllers/auth_controller.dart';
 
-class AuthScreen extends StatefulWidget {
+class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends ConsumerState<AuthScreen> {
   late PageController _pageController;
   int _selectedTab = 0;
 
@@ -29,6 +31,15 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _onTabSelected(int index) {
+    // Clear errors when switching tabs
+    if (index == 0) {
+      // Switching to login, clear signup errors
+      ref.read(signupControllerProvider.notifier).clearError();
+    } else {
+      // Switching to signup, clear login errors
+      ref.read(loginControllerProvider.notifier).clearError();
+    }
+
     setState(() {
       _selectedTab = index;
     });
@@ -40,6 +51,13 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _onPageChanged(int index) {
+    // Clear errors when swiping between tabs
+    if (index == 0) {
+      ref.read(signupControllerProvider.notifier).clearError();
+    } else {
+      ref.read(loginControllerProvider.notifier).clearError();
+    }
+
     setState(() {
       _selectedTab = index;
     });
