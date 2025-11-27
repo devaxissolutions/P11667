@@ -1,6 +1,7 @@
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dev_quotes/core/performance/perf_service.dart';
 import '../models/auth_state.dart';
 
 // Auth state notifier - handles authentication status only
@@ -46,7 +47,10 @@ class LoginController extends Notifier<AsyncValue<String?>> {
 
     try {
       final repository = ref.read(authRepositoryProvider);
-      final result = await repository.login(email, password);
+      final result = await PerfService.trace(
+        "login_trace",
+        () async => await repository.login(email, password),
+      );
 
       if (result is Success) {
         // Mark onboarding as completed when user logs in
