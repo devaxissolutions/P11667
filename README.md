@@ -48,7 +48,6 @@ flutter pub get
 2. Add your apps:
    - Android app
    - iOS app
-   - Web app
 
 3. Download configuration files:
    - `google-services.json` for Android (place in `android/app/`)
@@ -89,11 +88,6 @@ flutter build apk --release
 flutter build ios --release
 ```
 
-#### Web
-```bash
-flutter build web --release
-```
-
 ## Project Structure
 
 ```
@@ -113,14 +107,6 @@ lib/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## Testing
-
-Run tests with:
-
-```bash
-flutter test
-```
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -130,10 +116,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Name**: DevAxis Solutions
 - **Email**: devaxissoolutions@gmail.com
 - **Website**: [devaxissolutions.tech](https://devaxissolutions.tech)
-
-## Acknowledgments
-
-- Built with [Flutter](https://flutter.dev/)
-- Powered by [Firebase](https://firebase.google.com/)
-- Icons from [Material Design Icons](https://materialdesignicons.com/)
 
