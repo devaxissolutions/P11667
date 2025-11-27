@@ -44,7 +44,7 @@ class _SignupFormState extends ConsumerState<SignupForm> {
 
     if (_nameError == null && _emailError == null && _passwordError == null) {
       ref
-          .read(authProvider.notifier)
+          .read(signupControllerProvider.notifier)
           .signup(
             _nameController.text,
             _emailController.text,
@@ -55,8 +55,7 @@ class _SignupFormState extends ConsumerState<SignupForm> {
 
   @override
   Widget build(BuildContext context) {
-    final authAsync = ref.watch(authProvider);
-    final authState = authAsync.value;
+    final signupAsync = ref.watch(signupControllerProvider);
 
     // Switch to login tab on successful signup
     ref.listen(authProvider, (previous, next) {
@@ -65,11 +64,8 @@ class _SignupFormState extends ConsumerState<SignupForm> {
       }
     });
 
-    AuthMethod authLoadingAction = AuthMethod.none;
-    if (authState is AuthLoading) {
-      authLoadingAction = authState.action;
-    }
-    final isLoading = authLoadingAction == AuthMethod.signup;
+    final isLoading = signupAsync.isLoading;
+    final errorMessage = signupAsync.value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -124,7 +120,7 @@ class _SignupFormState extends ConsumerState<SignupForm> {
         const SizedBox(height: 32),
 
         // Error message
-        if (authState is AuthError) ...[
+        if (errorMessage != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -132,7 +128,7 @@ class _SignupFormState extends ConsumerState<SignupForm> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              authState.message,
+              errorMessage,
               style: AppTypography.body2.copyWith(color: AppColors.error),
               textAlign: TextAlign.center,
             ),
@@ -158,9 +154,9 @@ class _SignupFormState extends ConsumerState<SignupForm> {
         GoogleSignInButton(
           text: 'Sign up with Google',
           onPressed: () {
-            ref.read(authProvider.notifier).signInWithGoogle();
+            ref.read(signupControllerProvider.notifier).signInWithGoogle();
           },
-          isLoading: authLoadingAction == AuthMethod.google,
+          isLoading: signupAsync.isLoading,
         ),
 
         const SizedBox(height: 24),
