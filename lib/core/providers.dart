@@ -40,6 +40,11 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be overridden in main.dart');
 });
 
+final onboardingCompletedProvider = Provider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return prefs.getBool('onboarding_completed') ?? false;
+});
+
 // Data Sources
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   return AuthRemoteDataSourceImpl(
