@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/typography.dart';
 import 'splash_controller.dart';
 
@@ -47,8 +48,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Wait for controller initialization logic if needed
     await ref.read(splashControllerProvider).init();
 
+    // Check if onboarding is completed
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
     if (mounted) {
-      context.go('/onboarding');
+      if (onboardingCompleted) {
+        context.go('/auth');
+      } else {
+        context.go('/onboarding');
+      }
     }
   }
 
