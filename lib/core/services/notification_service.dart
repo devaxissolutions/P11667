@@ -41,7 +41,7 @@ class NotificationService {
     try {
       final settings = await _messaging.getNotificationSettings();
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
-             settings.authorizationStatus == AuthorizationStatus.provisional;
+          settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (e) {
       return false;
     }
