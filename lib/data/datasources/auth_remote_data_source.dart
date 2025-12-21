@@ -8,6 +8,7 @@ abstract class AuthRemoteDataSource {
   User? get currentUser;
   Future<UserCredential> signInWithGoogle();
   Future<void> resetPassword(String email);
+  Future<void> confirmPasswordReset(String code, String newPassword);
   Stream<User?> get authStateChanges;
 }
 
@@ -83,5 +84,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> resetPassword(String email) {
     return _firebaseAuth.sendPasswordResetEmail(email: email);
+  }
+
+  @override
+  Future<void> confirmPasswordReset(String code, String newPassword) {
+    return _firebaseAuth.confirmPasswordReset(
+      code: code,
+      newPassword: newPassword,
+    );
   }
 }
