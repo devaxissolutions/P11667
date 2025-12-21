@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isQuoteOwner(resourceData) {
+      return isAuthenticated() && request.auth.uid == resourceData.userId;
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      // Allow authenticated access to user profiles.
+      // Anyone can read basic profile info (needed for author display, etc.)
+      allow read: if true; 
+      
+      // Only the user can create or update their own profile.
+      // Validate that the document ID matches the auth UID.
+      allow create, update: if isOwner(userId)
+                            && request.resource.data.email == request.auth.token.email
+                            // Prevent tampering with sensitive counts directly (optional, but good practice if controlled by server functions)
+                            // For this MVP, we might allow clients to update profiles potentially including counts if client logic handles it, 
+                            // but ideally counts should be server-side. For now, we trust the client implementation.
+                            ;
+                            
+      allow delete: if isOwner(userId);
+    }
+
+    // --- Quotes Collection ---
+    match /quotes/{quoteId} {
+      // Public read access for quotes
+      allow read: if true;
+
+      // Create: Authenticated users can create quotes
+      allow create: if isAuthenticated() 
+                    // Validate basic schema
+                    && request.resource.data.keys().hasAll(['quoteText', 'author', 'category', 'userId', 'timestamp'])
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.quoteText is string
+                    && request.resource.data.quoteText.size() > 0
+                    && request.resource.data.quoteText.size() < 500
+                    && request.resource.data.author is string
+                    && request.resource.data.category is string;
+
+      // Update: Only the owner (creator) can update
+      allow update: if isQuoteOwner(resource.data)
+                    // Ensure ownership doesn't change
+                    && request.resource.data.userId == resource.data.userId;
+
+      // Delete: Only the owner (creator) can delete
+      allow delete: if isQuoteOwner(resource.data);
+    }
+
+    // --- Categories Collection ---
+    match /categories/{categoryId} {
+      // Public read access
+      allow read: if true;
+      
+      // Write access restricted (Admin only or disabled)
+      // Assuming for now regular users cannot create categories, only pick from existing.
+      allow write: if false; 
+    }
+
+    // --- Favorites Collection ---
+    // Structure: /favorites/{userId}/items/{quoteId}
+    match /favorites/{userId}/items/{quoteId} {
+      // Only the user can read/write their own favorites
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+  }
+}
