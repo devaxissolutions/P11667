@@ -133,6 +133,14 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
     // then return the ID. But for now, we assume ID is handled or we set it.
     // Let's just set the data.
     await docRef.set(quote.toFirestore());
+    
+    // Increment user's quotes count
+    if (quote.userId.isNotEmpty) {
+      await _firestore.collection('users').doc(quote.userId).update({
+        'quotesCount': FieldValue.increment(1),
+      });
+    }
+    
     return docRef.id;
   }
 
@@ -219,6 +227,11 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
         .collection('items')
         .doc(quoteId)
         .set({'addedAt': FieldValue.serverTimestamp()});
+        
+    // Increment user's favorites count
+    await _firestore.collection('users').doc(userId).update({
+      'favoritesCount': FieldValue.increment(1),
+    });
   }
 
   @override
@@ -229,9 +242,24 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
         .collection('items')
         .doc(quoteId)
         .delete();
+        
+    // Decrement user's favorites count
+    await _firestore.collection('users').doc(userId).update({
+      'favoritesCount': FieldValue.increment(-1),
+    });
   }
 
   Future<void> deleteQuote(String quoteId) async {
-    await _firestore.collection('quotes').doc(quoteId).delete();
+    final doc = await _firestore.collection('quotes').doc(quoteId).get();
+    if (doc.exists) {
+      final userId = doc.data()?['userId'] as String?;
+      await doc.reference.delete();
+      
+      if (userId != null && userId.isNotEmpty) {
+        await _firestore.collection('users').doc(userId).update({
+          'quotesCount': FieldValue.increment(-1),
+        });
+      }
+    }
   }
 }
