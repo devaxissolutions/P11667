@@ -201,26 +201,35 @@ final searchResultsProvider = FutureProvider<List<Quote>>((ref) async {
   final query = ref.watch(searchStatsProvider);
   final repository = ref.watch(quoteRepositoryProvider);
 
+  // Get favorites to check status
+  final favoritesAsync = ref.watch(favoritesProvider);
+  final favoriteIds = favoritesAsync.value?.map((q) => q.id).toSet() ?? {};
+
   // Always fetch public quotes
   final publicQuotesResult = await PerfService.trace(
     "search_quotes_trace",
     () async => await repository.getPublicQuotes().first,
   );
-  final publicQuotes = publicQuotesResult;
 
+  // Filter client-side
+  List<Quote> filtered;
   if (query.isEmpty) {
-    return publicQuotes;
+    filtered = publicQuotesResult;
+  } else {
+    final lowerQuery = query.toLowerCase();
+    filtered = publicQuotesResult.where((quote) {
+      return quote.text.toLowerCase().contains(lowerQuery) ||
+          quote.author.toLowerCase().contains(lowerQuery) ||
+          quote.category.toLowerCase().contains(lowerQuery);
+    }).toList();
   }
 
-  // Filter client-side for now
-  final lowerQuery = query.toLowerCase();
-  final filtered = publicQuotes.where((quote) {
-    return quote.text.toLowerCase().contains(lowerQuery) ||
-        quote.author.toLowerCase().contains(lowerQuery) ||
-        quote.category.toLowerCase().contains(lowerQuery);
+  // Update isFavorite status based on favorites list
+  return filtered.map((quote) {
+    return quote.copyWith(
+      isFavorite: favoriteIds.contains(quote.id),
+    );
   }).toList();
-
-  return filtered;
 });
 
 // Provider for single quote by ID
