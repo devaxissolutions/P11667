@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/theme.dart';
+import 'core/widgets/update_dialog.dart';
 import 'routes/app_router.dart';
 
 import 'package:dev_quotes/core/providers.dart';
@@ -10,7 +11,6 @@ import 'package:dev_quotes/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:go_router/go_router.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 
 // Global navigator key for notifications
@@ -42,7 +42,7 @@ void main() async {
 
     // Initialize notifications
     await NotificationService().initialize();
-    NotificationService().setNavigatorKey(navigatorKey);
+    // The navigator key will be set inside the App widget using the provider
   } catch (e) {
     debugPrint('Firebase init failed: $e');
   }
@@ -75,11 +75,73 @@ void main() async {
   }
 }
 
-class DevQuoteApp extends ConsumerWidget {
+class DevQuoteApp extends ConsumerStatefulWidget {
   const DevQuoteApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DevQuoteApp> createState() => _DevQuoteAppState();
+}
+
+class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Synchronize navigator key with NotificationService
+      final key = ref.read(navigatorKeyProvider);
+      NotificationService().setNavigatorKey(key);
+      
+      _checkForUpdates();
+    });
+  }
+
+  Future<void> _checkForUpdates() async {
+    final updateService = ref.read(updateServiceProvider);
+    final hasUpdate = await updateService.isUpdateAvailable();
+    if (hasUpdate && mounted) {
+      final releaseInfo = await updateService.getLatestReleaseInfo();
+      if (releaseInfo != null && mounted) {
+        _showUpdateDialog(releaseInfo);
+      }
+    }
+  }
+
+  void _showUpdateDialog(Map<String, dynamic> releaseInfo) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => UpdateDialog(
+        version: releaseInfo['version'],
+        releaseNotes: releaseInfo['releaseNotes'],
+        onUpdate: () async {
+          final updateService = ref.read(updateServiceProvider);
+          final success = await updateService.downloadAndInstallUpdate(
+            releaseInfo['downloadUrl'],
+            (progress) {
+              // Update progress in dialog if needed
+            },
+            () {
+              Navigator.of(context).pop();
+            },
+          );
+          if (success) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Update downloaded successfully')),
+            );
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Update failed')));
+          }
+        },
+        onCancel: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
