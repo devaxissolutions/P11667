@@ -9,5 +9,6 @@ abstract class AuthRepository {
   Future<Result<User>> getCurrentUser();
   Future<Result<User>> signInWithGoogle();
   Future<Result<void>> resetPassword(String email);
+  Future<Result<void>> confirmPasswordReset(String code, String newPassword);
   Stream<User?> get authStateChanges;
 }
