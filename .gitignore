@@ -58,3 +58,7 @@ app.*.map.json
 .flutter-plugins-dependencies
 .packages
 pubspec.lock.old
+linux/
+macos/
+android/
+iOS/
