@@ -21,4 +21,24 @@ class Quote extends Equatable {
 
   @override
   List<Object?> get props => [id, text, author, category, userId, timestamp, isFavorite];
+
+  Quote copyWith({
+    String? id,
+    String? text,
+    String? author,
+    String? category,
+    String? userId,
+    DateTime? timestamp,
+    bool? isFavorite,
+  }) {
+    return Quote(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      author: author ?? this.author,
+      category: category ?? this.category,
+      userId: userId ?? this.userId,
+      timestamp: timestamp ?? this.timestamp,
+      isFavorite: isFavorite ?? this.isFavorite,
+    );
+  }
 }
