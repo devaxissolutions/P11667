@@ -1,14 +1,17 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/string_utils.dart';
+import '../../../auth/controllers/auth_controller.dart';
+import '../../../auth/models/auth_state.dart';
 import '../../../quotes/presentation/providers/quote_provider.dart';
-import '../../../quotes/presentation/widgets/quote_action_bar.dart';
-import '../../../quotes/presentation/widgets/quote_category_chip.dart';
+import '../../../../data/models/quote_model.dart';
+import '../../../../data/models/user_model.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -16,8 +19,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quotesAsync = ref.watch(quotesProvider);
-    final currentIndex = ref.watch(currentQuoteIndexProvider);
     final connectivityAsync = ref.watch(connectivityProvider);
+    final authAsync = ref.watch(authProvider);
 
     final isOffline = connectivityAsync.maybeWhen(
       data: (results) => results.every((r) => r == ConnectivityResult.none),
@@ -25,117 +28,394 @@ class HomeScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (isOffline)
-              Container(
-                color: AppColors.surface.withOpacity(0.9),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.wifi_off, color: Colors.orangeAccent, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      "You're offline. Some features may be limited.",
-                      style: AppTypography.body2.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
+      backgroundColor: const Color(0xFF0F0F13),
+      body: Stack(
+        children: [
+          // Background Glow decoration
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF8B5CF6).withOpacity(0.08),
+              ),
+            ),
+          ),
+          
+          SafeArea(
+            child: Column(
+              children: [
+                if (isOffline) _buildOfflineBar(),
+                
+                // Header
+                _buildHeader(context, authAsync),
+                
+                Expanded(
+                  child: quotesAsync.when(
+                    data: (quotes) {
+                      if (quotes.isEmpty) return _buildEmptyState();
+                      return _HomeContent(quotes: quotes);
+                    },
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
                     ),
-                  ],
+                    error: (err, stack) => Center(
+                      child: Text('Error: $err', style: const TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfflineBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      color: Colors.orangeAccent.withOpacity(0.1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, color: Colors.orangeAccent, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            "Offline Mode",
+            style: GoogleFonts.inter(
+              color: Colors.orangeAccent,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AsyncValue<AuthState> authAsync) {
+    String greeting = "Hello, Developer";
+    String? avatarUrl;
+
+    if (authAsync.value is AuthAuthenticated) {
+      final user = (authAsync.value as AuthAuthenticated).user;
+      greeting = "Morning, ${user.username}";
+      avatarUrl = user.photoUrl;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                greeting,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            Expanded(
-              child: quotesAsync.when(
-                data: (quotes) {
-                  if (quotes.isEmpty) {
-                    return const Center(child: Text("No quotes found"));
-                  }
-                  final quote = quotes[currentIndex % quotes.length];
+              const SizedBox(height: 4),
+              Text(
+                "Ready for your daily wisdom?",
+                style: GoogleFonts.inter(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          GestureDetector(
+            onTap: () => context.push('/profile'),
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.5), width: 1.5),
+              ),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: const Color(0xFF1E1E24),
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl == null 
+                  ? const Icon(Icons.person_rounded, color: Colors.white70)
+                  : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                  return Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        QuoteCategoryChip(label: quote.category),
-                        const Spacer(),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 500),
-                          transitionBuilder:
-                              (Widget child, Animation<double> animation) {
-                                return FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                );
-                              },
-                          child: Center(
-                            child: Column(
-                              key: ValueKey<String>(quote.id),
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: double.infinity,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '"${normalizeQuoteString(quote.text)}"',
-                                    style: AppTypography.h2.copyWith(
-                                      color: Colors.white,
-                                      height: 1.3,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-                                Container(
-                                  width: double.infinity,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    "- ${normalizeQuoteString(quote.author)}",
-                                    style: AppTypography.body1.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        QuoteActionBar(
-                          isFavorite: quote.isFavorite,
-                          onFavorite: () => ref
-                              .read(quotesProvider.notifier)
-                              .toggleFavorite(quote),
-                          onShare: () {
-                            Share.share(
-                              '"${normalizeQuoteString(quote.text)}" - ${normalizeQuoteString(quote.author)}',
-                            );
-                          },
-                          onShuffle: () {
-                            ref
-                                .read(currentQuoteIndexProvider.notifier)
-                                .increment();
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                      ],
+  Widget _buildEmptyState() {
+     return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.format_quote_rounded, color: Colors.grey[800], size: 80),
+          const SizedBox(height: 16),
+          Text(
+            "No quotes today",
+            style: GoogleFonts.outfit(color: Colors.grey[500], fontSize: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeContent extends StatefulWidget {
+  final List<Quote> quotes;
+  const _HomeContent({required this.quotes});
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.quotes.length,
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final quote = widget.quotes[index];
+              return ListenableBuilder(
+                listenable: _pageController,
+                builder: (context, child) {
+                  double value = 1.0;
+                  if (_pageController.position.hasContentDimensions) {
+                    value = _pageController.page! - index;
+                    value = (1 - (value.abs() * 0.2)).clamp(0.0, 1.0);
+                  }
+                  return Center(
+                    child: Transform.scale(
+                      scale: value,
+                      child: Opacity(
+                        opacity: value,
+                        child: _QuoteCard(quote: quote),
+                      ),
                     ),
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Error: $err')),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: _ActionBar(controller: _pageController, quotes: widget.quotes),
+        ),
+        const SizedBox(height: 100),
+      ],
+    );
+  }
+}
+
+class _QuoteCard extends StatelessWidget {
+  final Quote quote;
+  const _QuoteCard({required this.quote});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E24),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8B5CF6).withOpacity(0.1),
+            blurRadius: 40,
+            spreadRadius: 0,
+            offset: const Offset(0, 0),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            spreadRadius: -5,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 24,
+            left: 24,
+            child: Icon(
+              Icons.format_quote_rounded,
+              color: const Color(0xFF8B5CF6).withOpacity(0.2),
+              size: 64,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Text(
+                        normalizeQuoteString(quote.text),
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  "- ${normalizeQuoteString(quote.author)}",
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    quote.category,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8B5CF6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionBar extends ConsumerWidget {
+  final PageController controller;
+  final List<Quote> quotes;
+  const _ActionBar({required this.controller, required this.quotes});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, child) {
+        int index = 0;
+        if (controller.hasClients) {
+          index = controller.page?.round() ?? 0;
+        }
+        if (index >= quotes.length) index = quotes.length - 1;
+        final quote = quotes[index];
+
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E24).withOpacity(0.5),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _ActionButton(
+                icon: quote.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: quote.isFavorite ? const Color(0xFFEF4444) : Colors.white70,
+                onTap: () => ref.read(quotesProvider.notifier).toggleFavorite(quote),
+              ),
+              _ActionButton(
+                icon: Icons.share_rounded,
+                color: Colors.white70,
+                onTap: () {
+                  Share.share(
+                    '"${normalizeQuoteString(quote.text)}" - ${normalizeQuoteString(quote.author)}',
+                  );
+                },
+              ),
+              _ActionButton(
+                icon: Icons.refresh_rounded,
+                color: Colors.white70,
+                onTap: () {
+                  ref.read(quotesProvider.notifier).shuffle();
+                  controller.animateToPage(
+                    0, 
+                    duration: const Duration(milliseconds: 500), 
+                    curve: Curves.easeInOut
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, color: color, size: 24),
+      style: IconButton.styleFrom(
+        padding: const EdgeInsets.all(12),
+        backgroundColor: Colors.transparent,
       ),
     );
   }
