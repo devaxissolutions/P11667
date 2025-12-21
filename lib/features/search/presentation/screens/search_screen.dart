@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../quotes/presentation/providers/quote_provider.dart';
 import '../../../quotes/presentation/widgets/quote_card.dart';
-import '../../../quotes/presentation/widgets/quote_category_chip.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -15,6 +15,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   late TextEditingController searchController;
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -22,11 +23,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     searchController = TextEditingController(
       text: ref.read(searchStatsProvider),
     );
+    _focusNode.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
     searchController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -37,126 +42,286 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final currentQuery = ref.watch(searchStatsProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: searchController,
-                onChanged: (value) {
-                  ref.read(searchStatsProvider.notifier).update(value);
-                },
-                decoration: InputDecoration(
-                  hintText: 'Search authors or topics...',
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: AppColors.textSecondary,
-                  ),
-                  suffixIcon: searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            searchController.clear();
-                            ref.read(searchStatsProvider.notifier).update('');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.divider),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.primary),
-                  ),
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Discover',
+                      style: GoogleFonts.outfit(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _ModernSearchBar(
+                      controller: searchController,
+                      focusNode: _focusNode,
+                      onChanged: (value) {
+                        ref.read(searchStatsProvider.notifier).update(value);
+                      },
+                      onClear: () {
+                        searchController.clear();
+                        ref.read(searchStatsProvider.notifier).update('');
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              Text('Trending Topics', style: AppTypography.h3),
-              const SizedBox(height: 16),
-              categoriesAsync.when(
+            ),
+            SliverToBoxAdapter(
+              child: categoriesAsync.when(
                 data: (categories) {
-                  if (categories.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: categories.map((topic) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: QuoteCategoryChip(
-                            label: topic,
-                            onTap: () {
-                              ref
-                                  .read(searchStatsProvider.notifier)
-                                  .update(topic);
-                              searchController.text = topic;
-                            },
+                  if (categories.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Trending Topics',
+                          style: AppTypography.h3.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 18,
                           ),
-                        );
-                      }).toList(),
-                    ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: categories.map((topic) {
+                            final isSelected = currentQuery == topic;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: _CategoryPill(
+                                label: topic,
+                                isSelected: isSelected,
+                                onTap: () {
+                                  if (isSelected) {
+                                    ref.read(searchStatsProvider.notifier).update('');
+                                    searchController.clear();
+                                  } else {
+                                    ref.read(searchStatsProvider.notifier).update(topic);
+                                    searchController.text = topic;
+                                  }
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   );
                 },
                 loading: () => const SizedBox.shrink(),
-                error: (err, stack) => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
               ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: searchResults.when(
-                  data: (quotes) {
-                    if (quotes.isEmpty && currentQuery.isNotEmpty) {
-                      return Center(
-                        child: Text(
-                          'No quotes found',
-                          style: AppTypography.body1.copyWith(
-                            color: AppColors.textSecondary,
+            ),
+            searchResults.when(
+              data: (quotes) {
+                if (quotes.isEmpty) {
+                  if (currentQuery.isNotEmpty) {
+                    return SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 48),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.search_off_rounded,
+                                size: 64,
+                                color: AppColors.textSecondary.withOpacity(0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No results found',
+                                style: AppTypography.body1.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    }
-                    return ListView.builder(
-                      itemCount: quotes.length,
-                      itemBuilder: (context, index) {
+                      ),
+                    );
+                  }
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                         final quote = quotes[index];
-                        return QuoteCard(
-                          quote: quote,
-                          trailing: IconButton(
-                            icon: Icon(
-                              quote.isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: quote.isFavorite
-                                  ? AppColors.error
-                                  : AppColors.textSecondary,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: QuoteCard(
+                            quote: quote,
+                            trailing: IconButton(
+                              icon: Icon(
+                                quote.isFavorite
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                color: quote.isFavorite
+                                    ? AppColors.error
+                                    : AppColors.textSecondary,
+                              ),
+                              onPressed: () {
+                                ref.read(quotesProvider.notifier).toggleFavorite(quote);
+                                ref.invalidate(searchResultsProvider);
+                              },
                             ),
-                            onPressed: () {
-                              ref
-                                  .read(quotesProvider.notifier)
-                                  .toggleFavorite(quote);
-                              // Refresh search results to reflect favorite change
-                              ref.invalidate(searchResultsProvider);
-                            },
                           ),
                         );
                       },
-                    );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error: $err')),
+                      childCount: quotes.length,
+                    ),
+                  ),
+                );
+              },
+              loading: () => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 48),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
               ),
-            ],
+              error: (err, stack) => SliverToBoxAdapter(
+                child: Center(child: Text('Error: $err')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModernSearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _ModernSearchBar({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: focusNode.hasFocus
+              ? AppColors.primary
+              : Colors.white.withOpacity(0.05),
+          width: 1.5,
+        ),
+        boxShadow: focusNode.hasFocus
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                )
+              ]
+            : [],
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        onChanged: onChanged,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search authors, topics, or keywords...',
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary.withOpacity(0.7),
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: focusNode.hasFocus ? AppColors.primary : AppColors.textSecondary,
+          ),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  color: AppColors.textSecondary,
+                  onPressed: onClear,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        cursorColor: AppColors.primary,
+      ),
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CategoryPill({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primary
+                : Colors.white.withOpacity(0.1),
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 13,
           ),
         ),
       ),
