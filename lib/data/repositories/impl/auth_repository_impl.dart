@@ -169,6 +169,25 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<void>> confirmPasswordReset(
+    String code,
+    String newPassword,
+  ) async {
+    try {
+      await _authDataSource.confirmPasswordReset(code, newPassword);
+      return const Success(null);
+    } catch (e) {
+      String message;
+      if (e is firebase.FirebaseAuthException) {
+        message = AuthExceptionHandler.handleFirebaseAuthException(e);
+      } else {
+        message = 'Something went wrong. Please try again.';
+      }
+      return Error(AuthFailure(message));
+    }
+  }
+
+  @override
   Stream<User?> get authStateChanges {
     return _authDataSource.authStateChanges.asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
