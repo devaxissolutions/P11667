@@ -12,6 +12,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 // Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -35,32 +36,13 @@ void main() async {
     startupTrace = FirebasePerformance.instance.newTrace("app_startup_time");
     await startupTrace.start();
 
-    // Note: GoogleSignIn requires SHA fingerprints to be added to Firebase Console
-    // and Google Sign-In provider to be enabled to generate OAuth client IDs
     // Register background handler for Firebase Messaging
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // Initialize notifications
-    await NotificationService().initialize();
-    // The navigator key will be set inside the App widget using the provider
   } catch (e) {
     debugPrint('Firebase init failed: $e');
   }
 
   final prefs = await SharedPreferences.getInstance();
-
-  // Seed database on first run (check if already seeded)
-  final hasSeeded = prefs.getBool('db_seeded') ?? false;
-  if (!hasSeeded) {
-    try {
-      await seedQuotes();
-      await seedCategories();
-      await prefs.setBool('db_seeded', true);
-      debugPrint('✅ Database seeded successfully');
-    } catch (e) {
-      debugPrint('❌ Error seeding database: $e');
-    }
-  }
 
   runApp(
     ProviderScope(
@@ -69,9 +51,47 @@ void main() async {
     ),
   );
 
-  // Stop startup trace after app is launched, if it was started
-  if (startupTrace != null) {
-    await startupTrace.stop();
+  // Perform background initialization after the UI is launched
+  _initializeBackgroundTasks(prefs, startupTrace);
+}
+
+/// Run background initialization tasks without blocking the UI
+Future<void> _initializeBackgroundTasks(
+  SharedPreferences prefs,
+  Trace? startupTrace,
+) async {
+  try {
+    // Initialize notifications in background
+    await NotificationService().initialize();
+
+    // Check connectivity before seeding
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final hasInternet = !connectivityResult.contains(ConnectivityResult.none);
+
+    // Seed database on first run (check if already seeded)
+    final hasSeeded = prefs.getBool('db_seeded') ?? false;
+    if (!hasSeeded && hasInternet) {
+      // Small delay to let the app settle
+      await Future.delayed(const Duration(seconds: 1));
+
+      try {
+        await seedQuotes();
+        await seedCategories();
+        await prefs.setBool('db_seeded', true);
+        debugPrint('✅ Database seeded successfully');
+      } catch (e) {
+        debugPrint('❌ Error seeding database: $e');
+      }
+    } else if (!hasSeeded && !hasInternet) {
+      debugPrint('ℹ️ Skip seeding: No internet connection');
+    }
+  } catch (e) {
+    debugPrint('Background init error: $e');
+  } finally {
+    // Stop startup trace after initialization is complete
+    if (startupTrace != null) {
+      await startupTrace.stop();
+    }
   }
 }
 

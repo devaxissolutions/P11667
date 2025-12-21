@@ -27,8 +27,14 @@ class UpdateService {
 
         return _isVersionNewer(latestVersion, currentVersion);
       }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        debugPrint('No updates found (404): No releases yet in the repository.');
+      } else {
+        debugPrint('Error checking for updates: ${e.message}');
+      }
     } catch (e) {
-      debugPrint('Error checking for updates: $e');
+      debugPrint('Unexpected error checking for updates: $e');
     }
     return false;
   }
