@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/colors.dart';
-import '../../../core/theme/typography.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AuthTabSelector extends StatelessWidget {
   final int selectedIndex;
@@ -14,23 +13,60 @@ class AuthTabSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _TabItem(
-            label: 'Login',
-            isSelected: selectedIndex == 0,
-            onTap: () => onTabSelected(0),
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E24),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Stack(
+        children: [
+          // Animated Background Pill
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.elasticOut,
+            alignment: selectedIndex == 0 ? Alignment.centerLeft : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        Expanded(
-          child: _TabItem(
-            label: 'Sign Up',
-            isSelected: selectedIndex == 1,
-            onTap: () => onTabSelected(1),
+          
+          // Tab Buttons
+          Row(
+            children: [
+              _TabItem(
+                label: 'Log In',
+                isSelected: selectedIndex == 0,
+                onTap: () => onTabSelected(0),
+              ),
+              _TabItem(
+                label: 'Sign Up',
+                isSelected: selectedIndex == 1,
+                onTap: () => onTabSelected(1),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -48,33 +84,21 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              label,
-              style: AppTypography.subtitle.copyWith(
-                color: isSelected
-                    ? AppColors.textPrimary
-                    : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              ),
-            ),
-          ),
-          AnimatedContainer(
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            height: 3,
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : Colors.transparent,
-              borderRadius: BorderRadius.circular(2),
+            style: GoogleFonts.outfit(
+              color: isSelected ? Colors.white : Colors.grey[500],
+              fontSize: 16,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
             ),
+            child: Text(label),
           ),
-        ],
+        ),
       ),
     );
   }
