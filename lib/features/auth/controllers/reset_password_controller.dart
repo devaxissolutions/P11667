@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:dev_quotes/features/auth/utils/auth_exception_handler.dart';
+import 'package:dev_quotes/core/providers.dart';
+import 'package:dev_quotes/core/utils/type_defs.dart';
 
 // Reset password state
 class ResetPasswordState {
@@ -62,14 +62,17 @@ class ResetPasswordNotifier extends Notifier<ResetPasswordState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      await FirebaseAuth.instance.confirmPasswordReset(
-        code: oobCode,
-        newPassword: state.newPassword,
+      final repository = ref.read(authRepositoryProvider);
+      final result = await repository.confirmPasswordReset(
+        oobCode,
+        state.newPassword,
       );
-      state = state.copyWith(isLoading: false, isSuccess: true);
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = AuthExceptionHandler.handleFirebaseAuthException(e);
-      state = state.copyWith(isLoading: false, error: errorMessage);
+
+      if (result is Success) {
+        state = state.copyWith(isLoading: false, isSuccess: true);
+      } else if (result is Error) {
+        state = state.copyWith(isLoading: false, error: result.failure.message);
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
