@@ -89,6 +89,16 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
+  Future<Result<void>> deleteQuote(String quoteId) async {
+    try {
+      await _firestoreDataSource.deleteQuote(quoteId);
+      return const Success(null);
+    } catch (e) {
+      return Error(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Stream<List<Quote>> getFavorites(String userId) {
     return _firestoreDataSource.getFavoritesIds(userId).asyncMap((ids) async {
       if (ids.isEmpty) return [];
