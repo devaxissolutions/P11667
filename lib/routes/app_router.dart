@@ -104,14 +104,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/my-quotes',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
         builder: (context, state) => const MyQuotesScreen(),
       ),
       GoRoute(
+        path: '/profile',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
         path: '/quote/:id',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
         builder: (context, state) {
           final quoteId = state.pathParameters['id']!;
           return QuoteDetailScreen(quoteId: quoteId);
         },
+      ),
+      GoRoute(
+        path: '/add-quote',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
+        builder: (context, state) => const AddQuoteScreen(),
+      ),
+      GoRoute(
+        path: '/about',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/terms-of-service',
+        parentNavigatorKey: ref.watch(navigatorKeyProvider),
+        builder: (context, state) => const TermsOfServiceScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -147,28 +174,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/settings',
                 builder: (context, state) => const SettingsScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'profile',
-                    builder: (context, state) => const ProfileScreen(),
-                  ),
-                  GoRoute(
-                    path: 'add-quote',
-                    builder: (context, state) => const AddQuoteScreen(),
-                  ),
-                  GoRoute(
-                    path: 'about',
-                    builder: (context, state) => const AboutScreen(),
-                  ),
-                  GoRoute(
-                    path: 'privacy-policy',
-                    builder: (context, state) => const PrivacyPolicyScreen(),
-                  ),
-                  GoRoute(
-                    path: 'terms-of-service',
-                    builder: (context, state) => const TermsOfServiceScreen(),
-                  ),
-                ],
+                routes: const [],
               ),
             ],
           ),
