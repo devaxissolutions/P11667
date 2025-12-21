@@ -16,6 +16,7 @@ abstract class FirestoreDataSource {
   Future<List<QuoteDto>> searchQuotes(String query);
   Future<String> addQuote(QuoteDto quote);
   Future<void> updateQuote(QuoteDto quote);
+  Future<void> deleteQuote(String quoteId);
   Stream<List<QuoteDto>> getUserQuotes(String userId);
   Stream<List<QuoteDto>> getPublicQuotes();
 
@@ -228,5 +229,9 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
         .collection('items')
         .doc(quoteId)
         .delete();
+  }
+
+  Future<void> deleteQuote(String quoteId) async {
+    await _firestore.collection('quotes').doc(quoteId).delete();
   }
 }
