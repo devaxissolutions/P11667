@@ -9,72 +9,169 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F13),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F13),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Privacy Policy',
-          style: GoogleFonts.outfit(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            backgroundColor: const Color(0xFF0F0F13),
+            surfaceTintColor: Colors.transparent,
+            pinned: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => context.pop(),
+            ),
+            centerTitle: true,
+            title: Text(
+              'Privacy Policy',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+        body: ListView(
+          padding: const EdgeInsets.all(20),
           children: [
+            _buildLastUpdated(),
+            const SizedBox(height: 24),
             _buildSection(
-              '1. Information Collection',
-              'We collect information you provide directly to us, such as when you create an account, update your profile, or submit a quote.',
+              number: '01',
+              title: 'Information Collection',
+              content: 'We collect information you provide directly to us when you create an account, update your profile, submit quotes, or communicate with us. This may include your name, email address, password, and any other information you choose to provide.',
             ),
             _buildSection(
-              '2. Use of Information',
-              'We use the information we collect to provide, maintain, and improve our services, such as to personalize your experience and send you notifications.',
+              number: '02',
+              title: 'Usage of Data',
+              content: 'We use the information we collect to provide, maintain, and improve our services. This includes personalizing your experience, sending technical notices, updates, and support messages, and detecting/preventing fraud.',
             ),
             _buildSection(
-              '3. Data Security',
-              'We take reasonable measures to help protect information about you from loss, theft, misuse and unauthorized access, disclosure, alteration and destruction.',
+              number: '03',
+              title: 'Data Storage',
+              content: 'Your data is securely stored on cloud servers. We implement appropriate technical and organizational measures to protect the security of your personal information.',
             ),
             _buildSection(
-              '4. Changes to this Policy',
-              'We may change this privacy policy from time to time. If we make changes, we will notify you by revising the date at the top of the policy.',
+              number: '04',
+              title: 'Third-Party Services',
+              content: 'We may use third-party services that collect, monitor and analyze data. These third-party service providers have their own privacy policies addressing how they use such information.',
             ),
+            _buildSection(
+              number: '05',
+              title: 'Your Rights',
+              content: 'You have the right to access, correct, or delete your personal information. You can manage your account settings within the app or contact us for assistance.',
+            ),
+            _buildSection(
+              number: '06',
+              title: 'Updates to Policy',
+              content: 'We may update this privacy policy from time to time. We will notify you of any changes by posting the new privacy policy on this page.',
+            ),
+            const SizedBox(height: 40),
+            Center(
+              child: Text(
+                'If you have any questions about this Privacy Policy,\nplease contact us.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSection(String title, String content) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+  Widget _buildLastUpdated() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E24),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today_rounded, color: Colors.grey[400], size: 20),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Last Updated',
+                style: GoogleFonts.inter(
+                  color: Colors.grey[500],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'December 21, 2025',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String number,
+    required String title,
+    required String content,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: GoogleFonts.outfit(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Row(
+            children: [
+              Text(
+                number,
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF8B5CF6),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 0), // Aligned with start
+            child: Text(
+              content,
+              style: GoogleFonts.inter(
+                color: Colors.grey[400],
+                fontSize: 15,
+                height: 1.6,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            content,
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              height: 1.6,
-              color: Colors.grey[300],
-            ),
-          ),
+          const SizedBox(height: 24),
+          Divider(color: Colors.white.withOpacity(0.05), height: 1),
         ],
       ),
     );
