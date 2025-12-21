@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/colors.dart';
 
 class SettingsToggleTile extends StatelessWidget {
   final IconData icon;
@@ -22,30 +23,42 @@ class SettingsToggleTile extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: Colors.grey[400],
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Colors.white,
                   ),
                 ),
               ),
-              Switch.adaptive(
-                value: value,
-                onChanged: onChanged,
-                activeColor: const Color(0xFF8B5CF6),
-                activeTrackColor: const Color(0xFF8B5CF6).withOpacity(0.4),
+              Transform.scale(
+                scale: 0.8,
+                child: Switch.adaptive(
+                  value: value,
+                  onChanged: onChanged,
+                  activeColor: AppColors.primary,
+                  activeTrackColor: AppColors.primary.withOpacity(0.3),
+                  inactiveThumbColor: AppColors.textSecondary,
+                  inactiveTrackColor: Colors.grey.withOpacity(0.3),
+                ),
               ),
             ],
           ),
@@ -55,7 +68,8 @@ class SettingsToggleTile extends StatelessWidget {
             height: 1,
             thickness: 1,
             color: Colors.white.withOpacity(0.05),
-            indent: 52,
+            indent: 60,
+            endIndent: 16,
           ),
       ],
     );
