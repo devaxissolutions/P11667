@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/colors.dart';
-import '../../../core/theme/typography.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../controllers/auth_controller.dart';
 import '../widgets/auth_tab_selector.dart';
 import 'login_form.dart';
 import 'signup_form.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -31,12 +30,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   void _onTabSelected(int index) {
+    if (index == _selectedTab) return;
+    
     // Clear errors when switching tabs
     if (index == 0) {
-      // Switching to login, clear signup errors
       ref.read(signupControllerProvider.notifier).clearError();
     } else {
-      // Switching to signup, clear login errors
       ref.read(loginControllerProvider.notifier).clearError();
     }
 
@@ -45,72 +44,125 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.fastOutSlowIn,
     );
-  }
-
-  void _onPageChanged(int index) {
-    // Clear errors when swiping between tabs
-    if (index == 0) {
-      ref.read(signupControllerProvider.notifier).clearError();
-    } else {
-      ref.read(loginControllerProvider.notifier).clearError();
-    }
-
-    setState(() {
-      _selectedTab = index;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 48),
-                  // DevQuote logo/title
-                  Text('DevQuote', style: AppTypography.title1),
-                  const SizedBox(height: 48),
-                  // Tab selector
-                  AuthTabSelector(
+      backgroundColor: const Color(0xFF0F0F13),
+      body: Stack(
+        children: [
+          // Background Accents
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF8B5CF6).withOpacity(0.05),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -50,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF8B5CF6).withOpacity(0.03),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 48),
+                
+                // Logo/Title section
+                Hero(
+                  tag: 'app_logo',
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.format_quote_rounded,
+                      color: Color(0xFF8B5CF6),
+                      size: 40,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'DevQuotes',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                Text(
+                  'Daily wisdom for developers',
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                ),
+                
+                const SizedBox(height: 40),
+
+                // Tab Selector
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: AuthTabSelector(
                     selectedIndex: _selectedTab,
                     onTabSelected: _onTabSelected,
                   ),
-                ],
-              ),
-            ),
+                ),
 
-            // Forms
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: const LoginForm(key: ValueKey('login')),
+                const SizedBox(height: 12),
+
+                // Forms
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _selectedTab = index;
+                      });
+                    },
+                    children: [
+                      SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: const LoginForm(key: ValueKey('login')),
+                      ),
+                      SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: SignupForm(
+                          key: const ValueKey('signup'),
+                          onSwitchToLogin: () => _onTabSelected(0),
+                        ),
+                      ),
+                    ],
                   ),
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: SignupForm(
-                      key: const ValueKey('signup'),
-                      onSwitchToLogin: () {
-                        _onTabSelected(0);
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
