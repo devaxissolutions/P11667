@@ -15,6 +15,7 @@ abstract class QuoteRepository {
   Stream<List<Quote>> getFavorites(String userId);
   Stream<List<Quote>> getUserQuotes(String userId);
   Stream<List<Quote>> getPublicQuotes();
+  Stream<List<Quote>> getQuoteFeed(String userId, bool showPublic);
   Future<Result<void>> addFavorite(String quoteId, String userId);
   Future<Result<void>> removeFavorite(String quoteId, String userId);
   Future<Result<Quote>> getQuoteById(String quoteId);
