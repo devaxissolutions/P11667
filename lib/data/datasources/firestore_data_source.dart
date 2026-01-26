@@ -19,6 +19,7 @@ abstract class FirestoreDataSource {
   Future<void> deleteQuote(String quoteId);
   Stream<List<QuoteDto>> getUserQuotes(String userId);
   Stream<List<QuoteDto>> getPublicQuotes();
+  Stream<List<QuoteDto>> getQuoteFeed(String userId, bool showPublic);
 
   Stream<List<String>> getFavoritesIds(String userId);
   Future<void> addFavorite(String userId, String quoteId);
@@ -170,8 +171,10 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
 
   @override
   Stream<List<QuoteDto>> getPublicQuotes() {
+    // Legacy support, or for unauthenticated
     return _firestore
         .collection('quotes')
+        .where('isPublic', isEqualTo: true)
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -179,6 +182,36 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
               .map((doc) => QuoteDto.fromFirestore(doc))
               .toList();
         });
+  }
+
+  @override
+  Stream<List<QuoteDto>> getQuoteFeed(String userId, bool showPublic) {
+    Query query = _firestore.collection('quotes');
+
+    if (showPublic) {
+      // Show: Public + Default + My Quotes
+      // Logic: (isPublic == true) OR (isDefault == true) OR (userId == currentUserId)
+      query = query.where(Filter.or(
+        Filter('isPublic', isEqualTo: true),
+        Filter('isDefault', isEqualTo: true),
+        Filter('userId', isEqualTo: userId),
+      ));
+    } else {
+      // Show: My Quotes + Default (Strictly NO other public quotes)
+      // Logic: (userId == currentUserId) OR (isDefault == true)
+      query = query.where(Filter.or(
+        Filter('userId', isEqualTo: userId),
+        Filter('isDefault', isEqualTo: true),
+      ));
+    }
+
+    return query
+        .orderBy('timestamp', descending: true)
+        .limit(50) // Reasonable limit for stream
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => QuoteDto.fromFirestore(doc)).toList();
+    });
   }
 
   @override
