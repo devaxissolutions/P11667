@@ -22,10 +22,14 @@ class ScaffoldWithNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
+      resizeToAvoidBottomInset: false,
       body: navigationShell,
-      bottomNavigationBar: _FloatingNavBar(
-        currentIndex: navigationShell.currentIndex,
-        onTap: _goBranch,
+      bottomNavigationBar: Padding( // Added Padding here
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), // Moved padding here
+        child: _FloatingNavBar(
+          currentIndex: navigationShell.currentIndex,
+          onTap: _goBranch,
+        ),
       ),
     );
   }
@@ -42,8 +46,7 @@ class _FloatingNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+    return SafeArea(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(40),
         child: BackdropFilter(

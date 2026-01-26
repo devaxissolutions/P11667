@@ -6,17 +6,26 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:open_file/open_file.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+
+enum UpdateCheckResult {
+  updateAvailable,
+  noUpdate,
+  noInternet,
+  rateLimitExceeded,
+  error,
+}
+
 class UpdateService {
   static const String githubApiUrl =
       'https://api.github.com/repos/devaxissolutions/P11667/releases/latest';
 
   final Dio _dio = Dio();
 
-  Future<bool> isUpdateAvailable() async {
+  Future<UpdateCheckResult> isUpdateAvailable() async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult.contains(ConnectivityResult.none)) {
-        return false;
+        return UpdateCheckResult.noInternet;
       }
 
       final response = await _dio.get(githubApiUrl);
@@ -25,18 +34,26 @@ class UpdateService {
         final latestVersion = data['tag_name'] as String;
         final currentVersion = await _getCurrentVersion();
 
-        return _isVersionNewer(latestVersion, currentVersion);
+        if (_isVersionNewer(latestVersion, currentVersion)) {
+          return UpdateCheckResult.updateAvailable;
+        } else {
+          return UpdateCheckResult.noUpdate;
+        }
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         debugPrint('No updates found (404): No releases yet in the repository.');
+        return UpdateCheckResult.noUpdate;
+      } else if (e.response?.statusCode == 403) {
+         debugPrint('GitHub API Rate Limit Exceeded');
+         return UpdateCheckResult.rateLimitExceeded;
       } else {
         debugPrint('Error checking for updates: ${e.message}');
       }
     } catch (e) {
       debugPrint('Unexpected error checking for updates: $e');
     }
-    return false;
+    return UpdateCheckResult.error;
   }
 
   Future<String> _getCurrentVersion() async {
@@ -92,13 +109,7 @@ class UpdateService {
     VoidCallback onCancel,
   ) async {
     try {
-      // Request storage permission
-      final storageStatus = await Permission.storage.request();
-      if (!storageStatus.isGranted) {
-        throw Exception('Storage permission denied');
-      }
-
-      // Get temp directory
+      // Get temp directory - No explicit permission needed for app's own cache/temp dir
       final tempDir = await getTemporaryDirectory();
       final fileName = 'update.apk';
       final filePath = '${tempDir.path}/$fileName';
@@ -112,13 +123,13 @@ class UpdateService {
             onProgress(received / total);
           }
         },
-        cancelToken: CancelToken(),
+        cancelToken: CancelToken(), // In a real app, manage this token to allow cancellation
       );
 
       // Install APK by opening it
       final result = await OpenFile.open(filePath);
       if (result.type != ResultType.done) {
-        throw Exception('Failed to open APK file');
+        throw Exception('Failed to open APK file: ${result.message}');
       }
 
       return true;

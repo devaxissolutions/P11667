@@ -13,6 +13,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dev_quotes/core/services/update_service.dart';
 
 // Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -110,15 +111,14 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
       // Synchronize navigator key with NotificationService
       final key = ref.read(navigatorKeyProvider);
       NotificationService().setNavigatorKey(key);
-      
       _checkForUpdates();
     });
   }
 
   Future<void> _checkForUpdates() async {
     final updateService = ref.read(updateServiceProvider);
-    final hasUpdate = await updateService.isUpdateAvailable();
-    if (hasUpdate && mounted) {
+    final result = await updateService.isUpdateAvailable();
+    if (result == UpdateCheckResult.updateAvailable && mounted) {
       final releaseInfo = await updateService.getLatestReleaseInfo();
       if (releaseInfo != null && mounted) {
         _showUpdateDialog(releaseInfo);
@@ -130,7 +130,7 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => UpdateDialog(
+      builder: (dialogContext) => UpdateDialog(
         version: releaseInfo['version'],
         releaseNotes: releaseInfo['releaseNotes'],
         onUpdate: () async {
@@ -141,21 +141,39 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
               // Update progress in dialog if needed
             },
             () {
-              Navigator.of(context).pop();
+              if (mounted && dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
             },
           );
-          if (success) {
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Update downloaded successfully')),
-            );
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Update failed')));
+          // Capture the root context before async gap if possible, or reliably check mounted
+          // Note: dialogContext is for the dialog. `context` is the state's context.
+          
+          if (!mounted) return;
+          
+          // Close dialog first
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+
+          // Then show snackbar using state context
+          if (mounted) {
+             if (success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Update downloaded successfully')),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Update failed')),
+              );
+            }
           }
         },
-        onCancel: () => Navigator.of(context).pop(),
+        onCancel: () {
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+        },
       ),
     );
   }

@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,66 +11,117 @@ import '../widgets/settings_tile.dart';
 import '../widgets/settings_toggle_tile.dart';
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/widgets/update_dialog.dart';
+import 'package:dev_quotes/core/services/update_service.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
-  void _showSnackBar(BuildContext context, String message) {
+  @override
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isCheckingUpdate = false;
+
+  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: AppColors.surface,
+        backgroundColor: isError ? AppColors.error : AppColors.surface,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
-  Future<void> _checkForUpdates(BuildContext context, WidgetRef ref) async {
-    final updateService = ref.read(updateServiceProvider);
-    _showSnackBar(context, 'Checking for updates...');
+  Future<void> _checkForUpdates() async {
+    if (_isCheckingUpdate) return;
 
-    final hasUpdate = await updateService.isUpdateAvailable();
-    if (!hasUpdate) {
-      _showSnackBar(context, 'You are up to date!');
-      return;
-    }
+    setState(() {
+      _isCheckingUpdate = true;
+    });
 
-    final releaseInfo = await updateService.getLatestReleaseInfo();
-    if (releaseInfo != null && context.mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => UpdateDialog(
-          version: releaseInfo['version'],
-          releaseNotes: releaseInfo['releaseNotes'],
-          onUpdate: () async {
-            final success = await updateService.downloadAndInstallUpdate(
-              releaseInfo['downloadUrl'],
-              (progress) {
-                // Could update progress in dialog
-              },
-              () {
-                Navigator.of(context).pop();
-              },
-            );
-            if (success && context.mounted) {
-              Navigator.of(context).pop();
-              _showSnackBar(context, 'Update downloaded successfully');
-            } else if (context.mounted) {
-              _showSnackBar(context, 'Update failed');
-            }
-          },
-          onCancel: () => Navigator.of(context).pop(),
-        ),
-      );
+    try {
+      final updateService = ref.read(updateServiceProvider);
+      _showSnackBar(context, 'Checking for updates...');
+
+      final result = await updateService.isUpdateAvailable();
+
+      if (!mounted) return;
+
+      switch (result) {
+        case UpdateCheckResult.noInternet:
+          _showSnackBar(context, 'No internet connection. Please check your network.', isError: true);
+          break;
+        case UpdateCheckResult.rateLimitExceeded:
+          _showSnackBar(context, 'Update server busy (Rate Limit). Please try again later.', isError: true);
+          break;
+        case UpdateCheckResult.error:
+          _showSnackBar(context, 'Failed to check for updates.', isError: true);
+          break;
+        case UpdateCheckResult.noUpdate:
+          _showSnackBar(context, 'You are using the latest version.');
+          break;
+        case UpdateCheckResult.updateAvailable:
+          // Proceed to fetch details
+          final releaseInfo = await updateService.getLatestReleaseInfo();
+          if (releaseInfo != null && mounted) {
+             // Hide the "Checking..." snackbar or just let it be
+             if (context.mounted) {
+               showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => UpdateDialog(
+                  version: releaseInfo['version'],
+                  releaseNotes: releaseInfo['releaseNotes'],
+                  onUpdate: () async {
+                    // Start download
+                    final success = await updateService.downloadAndInstallUpdate(
+                      releaseInfo['downloadUrl'],
+                      (progress) {
+                        // The dialog handles its own state if wired up, 
+                        // or we rely on the existing simplistic binding.
+                        // Ideally we'd pass a controller, but adhering to minimal UI changes:
+                      },
+                      () {
+                        Navigator.of(context).pop();
+                      },
+                    );
+                    if (success && context.mounted) {
+                      Navigator.of(context).pop();
+                      _showSnackBar(context, 'Update downloaded successfully');
+                    } else if (context.mounted) {
+                      // Only show failed if it wasn't just cancelled/closed successfully logic
+                      // But downloadAndInstallUpdate returns false on error.
+                      // Note: It returns false on user cancel in some implementations? 
+                      // No, current logic returns false on error.
+                      _showSnackBar(context, 'Update failed or cancelled', isError: true);
+                    }
+                  },
+                  onCancel: () => Navigator.of(context).pop(),
+                ),
+              );
+             }
+          } else {
+             _showSnackBar(context, 'Failed to load update details.', isError: true);
+          }
+          break;
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+        });
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
 
@@ -176,11 +228,16 @@ class SettingsScreen extends ConsumerWidget {
                           title: 'Terms of Service',
                           onTap: () => context.push('/terms-of-service'),
                         ),
-                        SettingsTile(
-                          icon: Icons.system_update_rounded,
-                          title: 'Check for Updates',
-                          onTap: () => _checkForUpdates(context, ref),
-                          showDivider: false,
+                        Opacity(
+                          opacity: _isCheckingUpdate ? 0.5 : 1.0,
+                          child: SettingsTile(
+                            icon: _isCheckingUpdate 
+                                ? Icons.hourglass_empty_rounded 
+                                : Icons.system_update_rounded,
+                            title: _isCheckingUpdate ? 'Checking...' : 'Check for Updates',
+                            onTap: _isCheckingUpdate ? () {} : _checkForUpdates,
+                            showDivider: false,
+                          ),
                         ),
                       ],
                     ),
@@ -215,7 +272,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     Center(
                       child: Text(
-                        'Version 1.0.0',
+                        'Version 1.0.0', // Ideally fetch this dynamically too
                         style: GoogleFonts.inter(
                           color: AppColors.textSecondary.withOpacity(0.5),
                           fontSize: 12,
@@ -232,3 +289,4 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
+
