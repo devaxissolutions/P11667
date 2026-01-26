@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:dev_quotes/core/theme/colors.dart';
 import '../../../../../core/providers.dart';
 import '../../../../../core/services/notifications/notification_service.dart';
 import '../../../../../core/utils/type_defs.dart';
@@ -174,48 +175,7 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
             const SizedBox(height: 24),
             _buildLabel('Category'),
             const SizedBox(height: 8),
-            categoriesAsync.when(
-              data: (categories) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E24),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedCategory,
-                      hint: Text(
-                        'Select a Category',
-                        style: GoogleFonts.inter(color: Colors.grey[500]),
-                      ),
-                      isExpanded: true,
-                      dropdownColor: const Color(0xFF1E1E24),
-                      icon: const Icon(
-                        Icons.arrow_drop_down,
-                        color: Colors.white,
-                      ),
-                      style: GoogleFonts.inter(color: Colors.white),
-                      items: categories.map((String category) {
-                        return DropdownMenuItem<String>(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedCategory = newValue;
-                        });
-                      },
-                    ),
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) =>
-                  Center(child: Text('Error loading categories')),
-            ),
+            _buildCategorySelector(categoriesAsync),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
@@ -263,6 +223,138 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
                           ),
                         ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector(AsyncValue<List<String>> categoriesAsync) {
+    return categoriesAsync.when(
+      data: (categories) => GestureDetector(
+        onTap: () => _showCategoryPicker(context, categories),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E24),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _selectedCategory ?? 'Select Category',
+                style: GoogleFonts.inter(
+                  color: _selectedCategory != null
+                      ? Colors.white
+                      : Colors.grey[600],
+                  fontSize: 16,
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(12),
+        child: LinearProgressIndicator(color: Color(0xFF8B5CF6)),
+      ),
+      error: (err, stack) => Text(
+        'Failed to load categories',
+        style: GoogleFonts.inter(color: AppColors.error),
+      ),
+    );
+  }
+
+  void _showCategoryPicker(BuildContext context, List<String> categories) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Color(0xFF16161D),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 24),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text(
+              'Select Category',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(24),
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  final isSelected = category == _selectedCategory;
+                  return Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() => _selectedCategory = category);
+                        Navigator.pop(context);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFF8B5CF6).withOpacity(0.2)
+                              : const Color(0xFF1E1E24),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF8B5CF6)
+                                : Colors.white.withOpacity(0.05),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              category,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(Icons.check_circle_rounded,
+                                  color: Color(0xFF8B5CF6), size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
