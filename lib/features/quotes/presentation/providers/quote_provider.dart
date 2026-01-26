@@ -55,27 +55,16 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
         return;
       }
 
-      if (showPublicQuotes) {
-        // Show all public quotes
-        final publicQuotes = await PerfService.trace(
-          "load_quotes_trace",
-          () async => await repository.getPublicQuotes().first.timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => <Quote>[],
-          ),
-        );
-        state = AsyncValue.data(publicQuotes.take(10).toList());
-      } else {
-        // Show only user's quotes
-        final userQuotes = await PerfService.trace(
-          "load_quotes_trace",
-          () async => await repository
-              .getUserQuotes(authState.user.id)
-              .first
-              .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]),
-        );
-        state = AsyncValue.data(userQuotes.take(10).toList());
-      }
+      final userId = authState.user.id;
+      final quotesWrapper = await PerfService.trace(
+        "load_quotes_feed_trace",
+        () async => await repository
+            .getQuoteFeed(userId, showPublicQuotes)
+            .first
+            .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]),
+      );
+      
+      state = AsyncValue.data(quotesWrapper.take(10).toList());
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
