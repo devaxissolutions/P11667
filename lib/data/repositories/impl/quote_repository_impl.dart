@@ -124,6 +124,13 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
+  Stream<List<Quote>> getQuoteFeed(String userId, bool showPublic) {
+    return _firestoreDataSource.getQuoteFeed(userId, showPublic).map((dtos) {
+      return dtos.map((dto) => QuoteMapper.toDomain(dto)).toList();
+    });
+  }
+
+  @override
   Future<Result<void>> addFavorite(String quoteId, String userId) async {
     try {
       await _firestoreDataSource.addFavorite(userId, quoteId);
