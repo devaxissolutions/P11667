@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:dev_quotes/core/theme/colors.dart';
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/utils/string_utils.dart';
@@ -23,7 +24,8 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
       SnackBar(
         content: Text(
           message,
-          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+          style: GoogleFonts.inter(
+              color: Colors.white, fontWeight: FontWeight.w500),
         ),
         backgroundColor: isError ? AppColors.error : const Color(0xFF34C759),
         behavior: SnackBarBehavior.floating,
@@ -43,7 +45,8 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Delete Quote?',
-          style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+          style: GoogleFonts.outfit(
+              color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Are you sure you want to delete this quote? This action cannot be undone.',
@@ -52,13 +55,15 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey[400])),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(color: Colors.grey[400])),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              'Delete', 
-              style: GoogleFonts.inter(color: AppColors.error, fontWeight: FontWeight.w600),
+              'Delete',
+              style: GoogleFonts.inter(
+                  color: AppColors.error, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -68,7 +73,7 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
     if (confirmed == true) {
       final repository = ref.read(quoteRepositoryProvider);
       final result = await repository.deleteQuote(quoteId);
-      
+
       if (result is Success) {
         _showSnackBar('Quote deleted successfully');
       } else if (result is Error) {
@@ -170,6 +175,15 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
     );
   }
 
+  Future<void> _refresh() async {
+    // Invalidate the provider to force a refresh
+    ref.invalidate(myQuotesProvider);
+    // Wait for the new state to be available (optional, but good for UX)
+    // We basically just wait a tick to let the UI update if needed, but the provider creates a stream
+    // so it might emit quickly.
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
   @override
   Widget build(BuildContext context) {
     final myQuotesAsync = ref.watch(myQuotesProvider);
@@ -196,169 +210,340 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
       body: myQuotesAsync.when(
         data: (quotes) {
           if (quotes.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            return RefreshIndicator(
+              color: AppColors.primary,
+              backgroundColor: const Color(0xFF1E1E24),
+              onRefresh: _refresh,
+              child: Stack(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E24),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF8B5CF6).withOpacity(0.15),
-                          blurRadius: 30,
-                          spreadRadius: 0,
+                  ListView(), // Required for RefreshIndicator to work on empty views
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E1E24),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    const Color(0xFF8B5CF6).withOpacity(0.15),
+                                blurRadius: 30,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.format_quote_rounded,
+                            size: 48,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No quotes yet',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Share your wisdom with the world',
+                          style: GoogleFonts.inter(
+                            color: AppColors.textSecondary,
+                            fontSize: 15,
+                          ),
                         ),
                       ],
-                    ),
-                    child: const Icon(
-                      Icons.format_quote_rounded,
-                      size: 48,
-                      color: Color(0xFF8B5CF6),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'No quotes yet',
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Share your wisdom with the world',
-                    style: GoogleFonts.inter(
-                      color: AppColors.textSecondary,
-                      fontSize: 15,
                     ),
                   ),
                 ],
               ),
             );
           }
-          
-          return ListView.separated(
+
+          return RefreshIndicator(
+            color: AppColors.primary,
+            backgroundColor: const Color(0xFF1E1E24),
+            onRefresh: _refresh,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(20),
+              physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics()),
+              itemCount: quotes.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final quote = quotes[index];
+                return _buildQuoteCard(quote);
+              },
+            ),
+          );
+        },
+        loading: () => _buildShimmerLoading(),
+        error: (err, stack) => _buildErrorState(err),
+      ),
+    );
+  }
+
+  Widget _buildQuoteCard(Quote quote) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E24),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.05),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _showQuoteOptions(quote),
+          child: Padding(
             padding: const EdgeInsets.all(20),
-            physics: const BouncingScrollPhysics(),
-            itemCount: quotes.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              final quote = quotes[index];
-              return Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E24),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.05),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.format_quote_rounded,
+                      color: const Color(0xFF8B5CF6).withOpacity(0.5),
+                      size: 24,
                     ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => _showQuoteOptions(quote),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.format_quote_rounded,
-                                color: const Color(0xFF8B5CF6).withOpacity(0.5),
-                                size: 24,
+                          if (quote.category.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color:
+                                    const Color(0xFF8B5CF6).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  normalizeQuoteString(quote.text),
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    height: 1.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              child: Text(
+                                quote.category,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8B5CF6),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 36),
-                                  child: Text(
-                                    "- ${normalizeQuoteString(quote.author)}",
-                                    style: GoogleFonts.inter(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 13,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.05),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.more_horiz_rounded,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                            ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Text(
+                            normalizeQuoteString(quote.text),
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 16,
+                              height: 1.5,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 36),
+                        child: Text(
+                          "- ${normalizeQuoteString(quote.author)}",
+                          style: GoogleFonts.inter(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.more_horiz_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 6,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E24),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Shimmer.fromColors(
+            baseColor: Colors.white.withOpacity(0.05),
+            highlightColor: Colors.white.withOpacity(0.1),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: 200,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(left: 36),
+                  child: Container(
+                    width: 120,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
-        ),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
-              const SizedBox(height: 16),
-              Text(
-                'Something went wrong',
-                style: GoogleFonts.inter(color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Could not load your quotes',
-                style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
-              ),
-            ],
+              ],
+            ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline_rounded,
+                  color: AppColors.error, size: 32),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Something went wrong',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Could not load your quotes. Please try again.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _refresh,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Try Again',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
         ),
       ),
     );
