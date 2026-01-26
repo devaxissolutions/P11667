@@ -7,6 +7,8 @@ class QuoteDto {
   final String category;
   final String userId;
   final DateTime timestamp;
+  final bool isPublic;
+  final bool isDefault;
 
   const QuoteDto({
     required this.id,
@@ -15,6 +17,8 @@ class QuoteDto {
     required this.category,
     required this.userId,
     required this.timestamp,
+    this.isPublic = true,
+    this.isDefault = false,
   });
 
   factory QuoteDto.fromFirestore(DocumentSnapshot doc) {
@@ -26,6 +30,8 @@ class QuoteDto {
       category: data['category'] ?? '',
       userId: data['userId'] ?? '',
       timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isPublic: data['isPublic'] ?? true, // Default to true if missing
+      isDefault: data['isDefault'] ?? false, // Default to false
     );
   }
 
@@ -36,6 +42,8 @@ class QuoteDto {
       'category': category,
       'userId': userId,
       'timestamp': Timestamp.fromDate(timestamp),
+      'isPublic': isPublic,
+      'isDefault': isDefault,
     };
   }
 
@@ -47,6 +55,8 @@ class QuoteDto {
       category: json['category'],
       userId: json['userId'],
       timestamp: DateTime.parse(json['timestamp']),
+      isPublic: json['isPublic'] ?? true,
+      isDefault: json['isDefault'] ?? false,
     );
   }
 
@@ -58,6 +68,8 @@ class QuoteDto {
       'category': category,
       'userId': userId,
       'timestamp': timestamp.toIso8601String(),
+      'isPublic': isPublic,
+      'isDefault': isDefault,
     };
   }
 }
