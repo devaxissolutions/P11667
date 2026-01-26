@@ -12,6 +12,8 @@ class QuoteMapper {
       userId: dto.userId,
       timestamp: dto.timestamp,
       isFavorite: isFavorite,
+      isPublic: dto.isPublic,
+      isDefault: dto.isDefault,
     );
   }
 
@@ -23,6 +25,8 @@ class QuoteMapper {
       category: model.category,
       userId: model.userId,
       timestamp: model.timestamp,
+      isPublic: model.isPublic,
+      isDefault: model.isDefault,
     );
   }
 }
