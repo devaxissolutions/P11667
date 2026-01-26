@@ -67,13 +67,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 40),
             Center(
-              child: Text(
-                'If you have any questions about this Privacy Policy,\nplease contact us.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                  height: 1.5,
+              child: TextButton(
+                onPressed: () {},
+                child: Text(
+                  'Contact Support',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8B5CF6),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -86,7 +88,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   Widget _buildLastUpdated() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E24),
         borderRadius: BorderRadius.circular(16),
@@ -130,44 +132,46 @@ class PrivacyPolicyScreen extends StatelessWidget {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(
-                number,
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFF8B5CF6),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  number,
+                  style: GoogleFonts.outfit(
+                    color: const Color(0xFF8B5CF6),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.only(left: 0), // Aligned with start
-            child: Text(
-              content,
-              style: GoogleFonts.inter(
-                color: Colors.grey[400],
-                fontSize: 15,
-                height: 1.6,
-              ),
+          Text(
+            content,
+            style: GoogleFonts.inter(
+              color: Colors.grey[400],
+              fontSize: 15,
+              height: 1.6,
             ),
           ),
           const SizedBox(height: 24),
