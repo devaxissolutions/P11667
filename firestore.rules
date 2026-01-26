@@ -35,8 +35,33 @@ service cloud.firestore {
 
     // --- Quotes Collection ---
     match /quotes/{quoteId} {
-      // Public read access for quotes
-      allow read: if true;
+      // Public read access for quotes based on visibility
+      // Allow if:
+      // 1. Quote is explicitly marked public
+      // 2. OR Quote is owned by the requester
+      // 3. OR Quote is marked as default/system
+      // Note: Existing quotes without these fields might need migration or default assumption in client code. 
+      // Rules enforce strict checking on existing fields. 
+      allow read: if (resource.data.keys().hasAny(['isPublic']) && resource.data.isPublic == true)
+                  || (resource.data.keys().hasAny(['isDefault']) && resource.data.isDefault == true)
+                  || isQuoteOwner(resource.data)
+                  // Fallback for migration: if fields missing, assume public? 
+                  // Safe approach: Assume public for MVP backward compatibility IF fields missing.
+                  // BUT user requested STRICT control. So let's be strict: if missing, assume public (legacy) or private?
+                  // "Private quotes of other users are never returned" -> Risk of legacy data being private.
+                  // Start conservative: If fields missing, assume PUBLIC (legacy behavior), but new quotes MUST respect flags.
+                  || (!resource.data.keys().hasAny(['isPublic']) && !resource.data.keys().hasAny(['userId'])); // Just legacy public assumption if truly untracked.
+                  // Actually, let's simplify for the requested logic:
+                  // "Private quotes of other users are never returned"
+                  // We will rely on query constraints matching these rules.
+                  // Correct Strict Rule:
+                  // allow read: if resource.data.isPublic == true || resource.data.isDefault == true || request.auth.uid == resource.data.userId;
+                  // Handling missing fields for legacy:
+                  // allow read: if resource.data.get('isPublic', true) == true || resource.data.get('isDefault', false) == true || request.auth.uid == resource.data.userId;
+      
+      allow read: if resource.data.get('isPublic', true) == true 
+                  || resource.data.get('isDefault', false) == true 
+                  || (isAuthenticated() && request.auth.uid == resource.data.userId);
 
       // Create: Authenticated users can create quotes
       allow create: if isAuthenticated() 
