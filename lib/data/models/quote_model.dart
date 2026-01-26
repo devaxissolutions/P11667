@@ -8,6 +8,8 @@ class Quote extends Equatable {
   final String userId;
   final DateTime timestamp;
   final bool isFavorite;
+  final bool isPublic;
+  final bool isDefault;
 
   const Quote({
     required this.id,
@@ -17,10 +19,12 @@ class Quote extends Equatable {
     required this.userId,
     required this.timestamp,
     this.isFavorite = false,
+    this.isPublic = true,
+    this.isDefault = false,
   });
 
   @override
-  List<Object?> get props => [id, text, author, category, userId, timestamp, isFavorite];
+  List<Object?> get props => [id, text, author, category, userId, timestamp, isFavorite, isPublic, isDefault];
 
   Quote copyWith({
     String? id,
@@ -30,6 +34,8 @@ class Quote extends Equatable {
     String? userId,
     DateTime? timestamp,
     bool? isFavorite,
+    bool? isPublic,
+    bool? isDefault,
   }) {
     return Quote(
       id: id ?? this.id,
@@ -39,6 +45,8 @@ class Quote extends Equatable {
       userId: userId ?? this.userId,
       timestamp: timestamp ?? this.timestamp,
       isFavorite: isFavorite ?? this.isFavorite,
+      isPublic: isPublic ?? this.isPublic,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 }
