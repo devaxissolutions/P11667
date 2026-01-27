@@ -3,7 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/services/notification_service.dart';
+import '../../../core/services/notifications/notification_service.dart';
 
 class NotificationPermissionScreen extends StatefulWidget {
   final VoidCallback onEnableNotifications;

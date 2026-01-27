@@ -96,7 +96,7 @@ class NotificationService {
     }
 
     // Request permissions
-    await _requestPermissions();
+    await requestNotificationPermission();
 
     // Get initial token
     final token = await _messaging.getToken();
@@ -120,7 +120,7 @@ class NotificationService {
     }
   }
 
-  Future<void> _requestPermissions() async {
+  Future<bool> requestNotificationPermission() async {
     NotificationSettings settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -132,6 +132,23 @@ class NotificationService {
     );
 
     debugPrint('FCM permission status: ${settings.authorizationStatus}');
+    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
+  }
+
+  Future<bool> isNotificationPermissionGranted() async {
+    final settings = await _messaging.getNotificationSettings();
+    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
+  }
+
+  Future<String?> getFCMToken() async {
+    try {
+      return await _messaging.getToken();
+    } catch (e) {
+      debugPrint('Error getting FCM token: $e');
+      return null;
+    }
   }
 
   Future<void> _updateUserToken(String token) async {
