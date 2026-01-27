@@ -9,14 +9,14 @@ Future<void> seedQuotes() async {
       'quoteText':
           'Code is like humor. When you have to explain it, it\'s bad.',
       'author': 'Cory House',
-      'category': 'Code Quality',
+      'category': 'Wisdom',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'First, solve the problem. Then, write the code.',
       'author': 'John Johnson',
-      'category': 'Problem Solving',
+      'category': 'Productivity',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -24,14 +24,14 @@ Future<void> seedQuotes() async {
       'quoteText':
           'Any fool can write code that a computer can understand. Good programmers write code that humans can understand.',
       'author': 'Martin Fowler',
-      'category': 'Code Quality',
+      'category': 'Wisdom',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'The best error message is the one that never shows up.',
       'author': 'Thomas Fuchs',
-      'category': 'UX',
+      'category': 'Productivity',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -39,14 +39,14 @@ Future<void> seedQuotes() async {
       'quoteText':
           'Walking on water and developing software from a specification are easy if both are frozen.',
       'author': 'Edward V. Berard',
-      'category': 'Development',
+      'category': 'Mindset',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'It\'s not a bug - it\'s an undocumented feature.',
       'author': 'Anonymous',
-      'category': 'Debugging',
+      'category': 'Productivity',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -54,7 +54,7 @@ Future<void> seedQuotes() async {
       'quoteText':
           'Programming isn\'t about what you know; it\'s about what you can figure out.',
       'author': 'Chris Pine',
-      'category': 'Learning',
+      'category': 'Growth',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -62,21 +62,21 @@ Future<void> seedQuotes() async {
       'quoteText':
           'The only way to learn a new programming language is by writing programs in it.',
       'author': 'Dennis Ritchie',
-      'category': 'Learning',
+      'category': 'Growth',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'Simplicity is the soul of efficiency.',
       'author': 'Austin Freeman',
-      'category': 'Code Quality',
+      'category': 'Wisdom',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'Make it work, make it right, make it fast.',
       'author': 'Kent Beck',
-      'category': 'Development',
+      'category': 'Mindset',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -92,7 +92,7 @@ Future<void> seedQuotes() async {
       'quoteText':
           'Debugging is twice as hard as writing the code in the first place.',
       'author': 'Brian Kernighan',
-      'category': 'Debugging',
+      'category': 'Wisdom',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -100,14 +100,14 @@ Future<void> seedQuotes() async {
       'quoteText':
           'The most disastrous thing that you can ever learn is your first programming language.',
       'author': 'Alan Kay',
-      'category': 'Learning',
+      'category': 'Growth',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'Deleted code is debugged code.',
       'author': 'Jeff Sickel',
-      'category': 'Code Quality',
+      'category': 'Wisdom',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -115,21 +115,21 @@ Future<void> seedQuotes() async {
       'quoteText':
           'There are two ways to write error-free programs; only the third one works.',
       'author': 'Alan J. Perlis',
-      'category': 'Debugging',
+      'category': 'Mindset',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'Talk is cheap. Show me the code.',
       'author': 'Linus Torvalds',
-      'category': 'Development',
+      'category': 'Mindset',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'Experience is the name everyone gives to their mistakes.',
       'author': 'Oscar Wilde',
-      'category': 'Learning',
+      'category': 'Growth',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -137,14 +137,14 @@ Future<void> seedQuotes() async {
       'quoteText':
           'In order to be irreplaceable, one must always be different.',
       'author': 'Coco Chanel',
-      'category': 'Innovation',
+      'category': 'Inspiration',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
     {
       'quoteText': 'Java is to JavaScript what car is to carpet.',
       'author': 'Chris Heilmann',
-      'category': 'JavaScript',
+      'category': 'Success',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -152,7 +152,7 @@ Future<void> seedQuotes() async {
       'quoteText':
           'Software is a great combination between artistry and engineering.',
       'author': 'Bill Gates',
-      'category': 'Development',
+      'category': 'Mindset',
       'userId': 'system',
       'timestamp': FieldValue.serverTimestamp(),
     },
@@ -173,15 +173,25 @@ Future<void> seedQuotes() async {
 Future<void> seedCategories() async {
   final firestore = FirebaseFirestore.instance;
 
+  // Clear existing categories first to ensure we have the new ones
+  final existing = await firestore.collection('categories').get();
+  if (existing.docs.isNotEmpty) {
+    final deleteBatch = firestore.batch();
+    for (var doc in existing.docs) {
+      deleteBatch.delete(doc.reference);
+    }
+    await deleteBatch.commit();
+  }
+
   final categories = [
-    {'name': 'Code Quality', 'icon': 'code', 'color': '8B5CF6'},
-    {'name': 'Debugging', 'icon': 'bug_report', 'color': 'EF4444'},
-    {'name': 'Learning', 'icon': 'school', 'color': '3B82F6'},
-    {'name': 'Development', 'icon': 'construction', 'color': 'F59E0B'},
-    {'name': 'JavaScript', 'icon': 'javascript', 'color': 'F7DF1E'},
-    {'name': 'Problem Solving', 'icon': 'psychology', 'color': '10B981'},
-    {'name': 'UX', 'icon': 'design_services', 'color': 'EC4899'},
-    {'name': 'Innovation', 'icon': 'lightbulb', 'color': 'FBBF24'},
+    {'name': 'Wisdom', 'icon': 'psychology', 'color': '8B5CF6'},
+    {'name': 'Success', 'icon': 'trending_up', 'color': 'EF4444'},
+    {'name': 'Life', 'icon': 'favorite', 'color': '3B82F6'},
+    {'name': 'Mindset', 'icon': 'lightbulb', 'color': 'F59E0B'},
+    {'name': 'Happiness', 'icon': 'sentiment_very_satisfied', 'color': 'F7DF1E'},
+    {'name': 'Growth', 'icon': 'auto_graph', 'color': '10B981'},
+    {'name': 'Inspiration', 'icon': 'auto_awesome', 'color': 'EC4899'},
+    {'name': 'Productivity', 'icon': 'shutter_speed', 'color': 'FBBF24'},
   ];
 
   final batch = firestore.batch();

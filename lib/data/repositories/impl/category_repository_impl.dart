@@ -21,18 +21,28 @@ class CategoryRepositoryImpl implements CategoryRepository {
         // User said "Fetch predefined categories".
         // If Firestore is empty, maybe we should return some defaults?
         return const Success([
-          Category(id: '1', name: 'Programming'),
-          Category(id: '2', name: 'Life'),
-          Category(id: '3', name: 'Motivation'),
+          Category(id: '1', name: 'Wisdom'),
+          Category(id: '2', name: 'Success'),
+          Category(id: '3', name: 'Life'),
+          Category(id: '4', name: 'Mindset'),
+          Category(id: '5', name: 'Happiness'),
+          Category(id: '6', name: 'Growth'),
+          Category(id: '7', name: 'Inspiration'),
+          Category(id: '8', name: 'Productivity'),
         ]);
       }
       return Success(dtos.map((dto) => CategoryMapper.toDomain(dto)).toList());
     } catch (e) {
       // Fallback on error
       return const Success([
-        Category(id: '1', name: 'Programming'),
-        Category(id: '2', name: 'Life'),
-        Category(id: '3', name: 'Motivation'),
+        Category(id: '1', name: 'Wisdom'),
+        Category(id: '2', name: 'Success'),
+        Category(id: '3', name: 'Life'),
+        Category(id: '4', name: 'Mindset'),
+        Category(id: '5', name: 'Happiness'),
+        Category(id: '6', name: 'Growth'),
+        Category(id: '7', name: 'Inspiration'),
+        Category(id: '8', name: 'Productivity'),
       ]);
     }
   }

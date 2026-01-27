@@ -23,12 +23,13 @@ service cloud.firestore {
       
       // Only the user can create or update their own profile.
       // Validate that the document ID matches the auth UID.
-      allow create, update: if isOwner(userId)
-                            && request.resource.data.email == request.auth.token.email
-                            // Prevent tampering with sensitive counts directly (optional, but good practice if controlled by server functions)
-                            // For this MVP, we might allow clients to update profiles potentially including counts if client logic handles it, 
-                            // but ideally counts should be server-side. For now, we trust the client implementation.
-                            ;
+      allow create: if isOwner(userId) 
+                    && (request.auth.token.email != null ? request.resource.data.email == request.auth.token.email : true);
+      
+      allow update: if isOwner(userId)
+                    // If email is being changed, ensure it matches the token (if token has email)
+                    && (request.resource.data.email == resource.data.email 
+                        || (request.auth.token.email != null && request.resource.data.email == request.auth.token.email));
                             
       allow delete: if isOwner(userId);
     }
@@ -88,9 +89,8 @@ service cloud.firestore {
       // Public read access
       allow read: if true;
       
-      // Write access restricted (Admin only or disabled)
-      // Assuming for now regular users cannot create categories, only pick from existing.
-      allow write: if false; 
+      // Allow authenticated users to write to categories (for seeding purposes)
+      allow write: if isAuthenticated();
     }
 
     // --- Favorites Collection ---

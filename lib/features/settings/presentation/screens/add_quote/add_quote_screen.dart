@@ -160,7 +160,7 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
               maxLines: 5,
               style: GoogleFonts.inter(color: Colors.white),
               decoration: _buildInputDecoration(
-                'Enter the developer quote here...',
+                'Enter the inspiring quote here...',
               ),
             ),
             const SizedBox(height: 24),

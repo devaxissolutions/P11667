@@ -21,15 +21,15 @@ class TopicSelectionScreen extends ConsumerWidget {
   });
 
   static const List<String> topics = [
-    'Productivity',
+    'Wisdom',
+    'Success',
+    'Life',
     'Motivation',
-    'Technical',
-    'Leadership',
-    'Humor',
-    'Career',
-    'Design',
-    'Software Craft',
-    'Agile',
+    'Mindset',
+    'Happiness',
+    'Growth',
+    'Inspiration',
+    'Productivity',
   ];
 
   @override

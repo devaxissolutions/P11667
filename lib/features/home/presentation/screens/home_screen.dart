@@ -99,7 +99,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildHeader(BuildContext context, AsyncValue<AuthState> authAsync) {
-    String greeting = "Hello, Developer";
+    String greeting = "Hello, Wise Soul";
     String? avatarUrl;
 
     if (authAsync.value is AuthAuthenticated) {

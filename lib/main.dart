@@ -62,24 +62,32 @@ Future<void> _initializeBackgroundTasks(
   Trace? startupTrace,
 ) async {
   try {
-    // Initialize notifications in background
-    await NotificationService().initialize();
+    // Initialize notifications in background - wrap in own try-catch to prevent blocking
+    try {
+      await NotificationService().initialize();
+    } catch (e) {
+      debugPrint('Notification service init failed: $e');
+    }
 
     // Check connectivity before seeding
     final connectivityResult = await Connectivity().checkConnectivity();
     final hasInternet = !connectivityResult.contains(ConnectivityResult.none);
 
-    // Seed database on first run (check if already seeded)
-    final hasSeeded = prefs.getBool('db_seeded') ?? false;
+    // Seed database on first run or when categories need update
+    final hasSeeded = prefs.getBool('db_seeded_universal_v1') ?? false;
     if (!hasSeeded && hasInternet) {
       // Small delay to let the app settle
       await Future.delayed(const Duration(seconds: 1));
 
       try {
-        await seedQuotes();
         await seedCategories();
-        await prefs.setBool('db_seeded', true);
-        debugPrint('✅ Database seeded successfully');
+        // Also seed quotes if they haven't been seeded ever
+        if (!(prefs.getBool('db_seeded') ?? false)) {
+          await seedQuotes();
+          await prefs.setBool('db_seeded', true);
+        }
+        await prefs.setBool('db_seeded_universal_v1', true);
+        debugPrint('✅ Database categories updated successfully');
       } catch (e) {
         debugPrint('❌ Error seeding database: $e');
       }
