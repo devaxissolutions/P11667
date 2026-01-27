@@ -8,7 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 
 /// Top-level background message handler required by FCM plugin.
 /// Must be a top-level function.
@@ -33,9 +32,8 @@ class NotificationService {
   GlobalKey<NavigatorState>? _navigatorKey;
   String? _pendingNotificationPath;
 
-  // FCM Server Key - Get from Firebase Console > Project Settings > Cloud Messaging > Server Key
-  // WARNING: This should be stored securely, not hardcoded in production
-  static const String _fcmServerKey = 'YOUR_FCM_SERVER_KEY_HERE';
+  // SECURITY NOTE: Push notifications to other users must be sent from a secure backend
+  // (e.g., Firebase Cloud Functions). Never include FCM Server Keys in client code.
 
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
@@ -277,62 +275,25 @@ class NotificationService {
     return true;
   }
 
-  // Method to send notification for new quote
+  /// Request to send notification for new quote.
+  /// 
+  /// IMPORTANT: This should trigger a Cloud Function or backend API.
+  /// Never send push notifications directly from client code as it requires
+  /// exposing the FCM Server Key, which is a critical security vulnerability.
+  /// 
+  /// To implement properly:
+  /// 1. Create a Cloud Function triggered by Firestore writes to 'quotes' collection
+  /// 2. The Cloud Function should handle sending notifications securely
+  /// 3. Or call a secure backend API endpoint that handles notification sending
   Future<void> sendNewQuoteNotification(
     String quoteId,
     String quoteText,
     String author,
     String creatorId,
   ) async {
-    try {
-      // Get all users with notifications enabled
-      final usersSnapshot = await _firestore
-          .collection('users')
-          .where('preferences.notificationsEnabled', isEqualTo: true)
-          .get();
-
-      final tokens = <String>[];
-      for (final doc in usersSnapshot.docs) {
-        final data = doc.data();
-        final token = data['fcmToken'] as String?;
-        final userId = doc.id;
-        if (token != null && userId != creatorId) {
-          tokens.add(token);
-        }
-      }
-
-      if (tokens.isEmpty) return;
-
-      final url = Uri.parse('https://fcm.googleapis.com/fcm/send');
-
-      final headers = {
-        'Authorization': 'key=$_fcmServerKey',
-        'Content-Type': 'application/json',
-      };
-
-      final body = jsonEncode({
-        'registration_ids': tokens, // Send to multiple tokens
-        'notification': {
-          'title': 'New Quote Added',
-          'body': '"$quoteText" - $author',
-        },
-        'data': {
-          'quoteId': quoteId,
-          'type': 'new_quote',
-          'userId': creatorId, // Include for potential use
-        },
-      });
-
-      final response = await http.post(url, headers: headers, body: body);
-      if (response.statusCode == 200) {
-        debugPrint('Notification sent to ${tokens.length} users');
-      } else {
-        debugPrint(
-          'Failed to send notification: ${response.statusCode} ${response.body}',
-        );
-      }
-    } catch (e) {
-      debugPrint('Error sending notification: $e');
-    }
+    // TODO: Implement via Cloud Functions or secure backend API
+    // This method is intentionally disabled for security reasons.
+    // Push notifications should be triggered server-side when a quote is created.
+    debugPrint('sendNewQuoteNotification: Notifications should be sent via Cloud Functions');
   }
 }

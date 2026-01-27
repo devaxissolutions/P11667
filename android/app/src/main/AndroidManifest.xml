@@ -34,7 +34,7 @@
             android:value="2" />
 
         <provider
-            android:name="com.viit.open_file.OpenFileProvider"
+            android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileProvider"
             android:exported="false"
             android:grantUriPermissions="true">

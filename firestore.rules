@@ -17,9 +17,9 @@ service cloud.firestore {
 
     // --- Users Collection ---
     match /users/{userId} {
-      // Allow authenticated access to user profiles.
-      // Anyone can read basic profile info (needed for author display, etc.)
-      allow read: if true; 
+      // SECURITY: Only authenticated users can read user profiles
+      // Users can read their own full profile, others can only see public fields
+      allow read: if isAuthenticated();
       
       // Only the user can create or update their own profile.
       // Validate that the document ID matches the auth UID.

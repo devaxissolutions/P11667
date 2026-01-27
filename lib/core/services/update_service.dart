@@ -135,33 +135,26 @@ class UpdateService {
     return null;
   }
 
-  Future<bool> downloadAndInstallUpdate(
+  /// Result of the download and install operation
+  /// Returns a tuple-like map with 'success' and optional 'error' message
+  Future<Map<String, dynamic>> downloadAndInstallUpdate(
     String downloadUrl,
     Function(double) onProgress,
     VoidCallback onCancel,
   ) async {
+    String? downloadedFilePath;
+    
     try {
-      // 1. Check & Request Install Permission (Android)
-      if (Platform.isAndroid) {
-        final status = await Permission.requestInstallPackages.status;
-        if (!status.isGranted) {
-          final result = await Permission.requestInstallPackages.request();
-          if (!result.isGranted) {
-            debugPrint('Install permission denied by user');
-            return false;
-          }
-        }
-      }
-
-      // 2. Get temp directory
+      // 1. Get temp directory
       final tempDir = await getTemporaryDirectory();
       final fileName = 'update_${DateTime.now().millisecondsSinceEpoch}.apk';
-      final filePath = '${tempDir.path}/$fileName';
+      downloadedFilePath = '${tempDir.path}/$fileName';
 
-      // 3. Download APK
+      // 2. Download APK first
+      debugPrint('Downloading APK to: $downloadedFilePath');
       await _dio.download(
         downloadUrl,
-        filePath,
+        downloadedFilePath,
         deleteOnError: true,
         onReceiveProgress: (received, total) {
           if (total != -1) {
@@ -169,21 +162,100 @@ class UpdateService {
           }
         },
       );
+      
+      debugPrint('Download completed successfully');
+
+      // 3. After download completes, request install permission (Android)
+      if (Platform.isAndroid) {
+        final permissionResult = await _requestInstallPermission();
+        if (!permissionResult['granted']) {
+          return {
+            'success': false,
+            'error': permissionResult['error'] ?? 'Install permission denied',
+            'permissionDenied': true,
+            'permanentlyDenied': permissionResult['permanentlyDenied'] ?? false,
+          };
+        }
+      }
 
       // 4. Install APK
-      debugPrint('Installing APK from: $filePath');
-      final result = await OpenFile.open(filePath);
+      debugPrint('Installing APK from: $downloadedFilePath');
+      final result = await OpenFile.open(downloadedFilePath);
       
       if (result.type != ResultType.done) {
         debugPrint('OpenFile error: ${result.message}');
-        // If it still fails, try to explain why
-        throw Exception('Failed to open APK: ${result.message}');
+        return {
+          'success': false,
+          'error': 'Failed to open APK installer: ${result.message}',
+        };
       }
 
-      return true;
+      return {'success': true};
     } catch (e) {
       debugPrint('Error downloading/installing update: $e');
-      return false;
+      return {
+        'success': false,
+        'error': 'Download failed: ${e.toString()}',
+      };
     }
+  }
+
+  /// Request the install packages permission on Android
+  /// Returns a map with 'granted' boolean and optional 'error' message
+  Future<Map<String, dynamic>> _requestInstallPermission() async {
+    try {
+      // Check current permission status
+      var status = await Permission.requestInstallPackages.status;
+      debugPrint('Current install permission status: $status');
+
+      if (status.isGranted) {
+        return {'granted': true};
+      }
+
+      // If permanently denied, we need to open settings
+      if (status.isPermanentlyDenied) {
+        debugPrint('Install permission is permanently denied');
+        return {
+          'granted': false,
+          'error': 'Permission to install apps is permanently denied. Please enable it in Settings.',
+          'permanentlyDenied': true,
+        };
+      }
+
+      // Request permission
+      debugPrint('Requesting install permission...');
+      status = await Permission.requestInstallPackages.request();
+      debugPrint('Permission request result: $status');
+
+      if (status.isGranted) {
+        return {'granted': true};
+      }
+
+      // Check if now permanently denied after request
+      if (status.isPermanentlyDenied) {
+        return {
+          'granted': false,
+          'error': 'Permission to install apps was denied. Please enable it in Settings to install updates.',
+          'permanentlyDenied': true,
+        };
+      }
+
+      return {
+        'granted': false,
+        'error': 'Permission to install apps was denied. The update cannot be installed without this permission.',
+        'permanentlyDenied': false,
+      };
+    } catch (e) {
+      debugPrint('Error requesting install permission: $e');
+      return {
+        'granted': false,
+        'error': 'Failed to request install permission: ${e.toString()}',
+      };
+    }
+  }
+
+  /// Open app settings so user can manually enable the install permission
+  Future<bool> openAppSettings() async {
+    return await openAppSettings();
   }
 }

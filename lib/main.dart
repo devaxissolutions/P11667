@@ -150,7 +150,7 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
         progressNotifier: progressNotifier,
         onUpdate: () async {
           final updateService = ref.read(updateServiceProvider);
-          final success = await updateService.downloadAndInstallUpdate(
+          final result = await updateService.downloadAndInstallUpdate(
             releaseInfo['downloadUrl'],
             (progress) {
               progressNotifier.value = progress;
@@ -168,14 +168,17 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
             Navigator.of(dialogContext).pop();
           }
 
+          final success = result['success'] as bool;
+
           if (mounted) {
              if (success) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Update downloaded successfully')),
+                const SnackBar(content: Text('Update downloaded successfully. Please complete the installation.')),
               );
             } else {
+              final errorMessage = result['error'] as String? ?? 'Update failed';
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Update failed')),
+                SnackBar(content: Text(errorMessage)),
               );
             }
           }

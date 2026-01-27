@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../auth/controllers/auth_controller.dart';
 import '../providers/settings_provider.dart';
@@ -35,6 +36,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showPermissionDeniedDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Permission Required',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'To install updates, please enable "Install unknown apps" permission for Dev Quotes in your device settings.',
+              style: TextStyle(color: Colors.white60, fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Open Settings', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -81,7 +128,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   size: releaseInfo['size'] ?? 0,
                   progressNotifier: progressNotifier,
                   onUpdate: () async {
-                    final success = await updateService.downloadAndInstallUpdate(
+                    final result = await updateService.downloadAndInstallUpdate(
                       releaseInfo['downloadUrl'],
                       (progress) {
                         progressNotifier.value = progress;
@@ -90,12 +137,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         Navigator.of(context).pop();
                       },
                     );
+                    
+                    final success = result['success'] as bool;
+                    
                     if (success && context.mounted) {
                       Navigator.of(context).pop();
-                      _showSnackBar(context, 'Update downloaded successfully');
+                      _showSnackBar(context, 'Update downloaded successfully. Please complete the installation.');
                     } else if (context.mounted) {
-                      _showSnackBar(context, 'Update failed or cancelled', isError: true);
                       Navigator.of(context).pop();
+                      
+                      // Handle permission denial specifically
+                      if (result['permissionDenied'] == true) {
+                        final permanentlyDenied = result['permanentlyDenied'] == true;
+                        final errorMessage = result['error'] as String? ?? 'Install permission denied';
+                        
+                        if (permanentlyDenied) {
+                          // Show dialog to open settings
+                          _showPermissionDeniedDialog(context, errorMessage);
+                        } else {
+                          _showSnackBar(context, errorMessage, isError: true);
+                        }
+                      } else {
+                        final errorMessage = result['error'] as String? ?? 'Update failed';
+                        _showSnackBar(context, errorMessage, isError: true);
+                      }
                     }
                   },
                   onCancel: () {
