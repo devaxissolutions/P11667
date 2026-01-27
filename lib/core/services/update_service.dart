@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:pub_semver/pub_semver.dart';
 import 'package:flutter/material.dart';
@@ -140,12 +141,24 @@ class UpdateService {
     VoidCallback onCancel,
   ) async {
     try {
-      // Get temp directory - No explicit permission needed for app's own cache/temp dir
+      // 1. Check & Request Install Permission (Android)
+      if (Platform.isAndroid) {
+        final status = await Permission.requestInstallPackages.status;
+        if (!status.isGranted) {
+          final result = await Permission.requestInstallPackages.request();
+          if (!result.isGranted) {
+            debugPrint('Install permission denied by user');
+            return false;
+          }
+        }
+      }
+
+      // 2. Get temp directory
       final tempDir = await getTemporaryDirectory();
-      final fileName = 'update.apk';
+      final fileName = 'update_${DateTime.now().millisecondsSinceEpoch}.apk';
       final filePath = '${tempDir.path}/$fileName';
 
-      // Download APK with deleteOnError to prevent corrupted partial files
+      // 3. Download APK
       await _dio.download(
         downloadUrl,
         filePath,
@@ -155,13 +168,16 @@ class UpdateService {
             onProgress(received / total);
           }
         },
-        cancelToken: CancelToken(), // In a real app, manage this token to allow cancellation
       );
 
-      // Install APK by opening it
+      // 4. Install APK
+      debugPrint('Installing APK from: $filePath');
       final result = await OpenFile.open(filePath);
+      
       if (result.type != ResultType.done) {
-        throw Exception('Failed to open APK file: ${result.message}');
+        debugPrint('OpenFile error: ${result.message}');
+        // If it still fails, try to explain why
+        throw Exception('Failed to open APK: ${result.message}');
       }
 
       return true;

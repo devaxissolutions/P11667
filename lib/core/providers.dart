@@ -18,6 +18,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dev_quotes/core/services/update_service.dart';
+import 'package:dev_quotes/core/services/notifications/notification_service.dart';
+import 'package:dev_quotes/core/services/rate_limit_service.dart';
 
 // External Services
 final firebaseAuthProvider = Provider<FirebaseAuth>(
@@ -27,10 +29,6 @@ final firestoreProvider = Provider<FirebaseFirestore>(
   (ref) => FirebaseFirestore.instance,
 );
 final googleSignInProvider = Provider<GoogleSignIn>((ref) {
-  // GoogleSignIn requires proper Firebase Console setup:
-  // 1. Add SHA-1 & SHA-256 fingerprints to Firebase Console
-  // 2. Enable Google Sign-In in Authentication providers
-  // 3. OAuth client will be auto-generated in google-services.json
   return GoogleSignIn(
     serverClientId:
         '958725673026-q173iglhhef0av7tbo402uttr61sc7d2.apps.googleusercontent.com',
@@ -74,11 +72,16 @@ final localDataSourceProvider = Provider<LocalDataSource>((ref) {
 });
 
 // Repositories
+final rateLimitServiceProvider = Provider<RateLimitService>((ref) {
+  return RateLimitService(ref.watch(sharedPreferencesProvider));
+});
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     authDataSource: ref.watch(authRemoteDataSourceProvider),
     firestoreDataSource: ref.watch(firestoreDataSourceProvider),
     localDataSource: ref.watch(localDataSourceProvider),
+    rateLimitService: ref.watch(rateLimitServiceProvider),
   );
 });
 
@@ -104,4 +107,8 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 
 final updateServiceProvider = Provider<UpdateService>((ref) {
   return UpdateService();
+});
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService();
 });

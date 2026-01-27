@@ -19,3 +19,7 @@ class CacheFailure extends Failure {
 class AuthFailure extends Failure {
   const AuthFailure(super.message);
 }
+
+class RateLimitFailure extends Failure {
+  const RateLimitFailure(super.message);
+}

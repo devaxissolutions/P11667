@@ -70,7 +70,18 @@ class SettingsNotifier extends Notifier<SettingsState> {
     );
   }
 
-  void toggleNotifications(bool value) {
+  void toggleNotifications(bool value) async {
+    if (value) {
+      // If enabling, request permission first
+      final notificationService = ref.read(notificationServiceProvider);
+      final granted = await notificationService.requestNotificationPermission();
+      
+      if (!granted) {
+        // If permission denied, we can't enable it in state
+        return;
+      }
+    }
+
     // Update state immediately for responsive UI
     state = state.copyWith(notificationsEnabled: value);
 
@@ -110,13 +121,24 @@ class SettingsNotifier extends Notifier<SettingsState> {
       // Update Firestore preference
       final authAsync = ref.read(authProvider);
       final authState = authAsync.value;
+      
+      final firestore = ref.read(firestoreDataSourceProvider);
+      final notificationService = ref.read(notificationServiceProvider);
+
       if (authState is AuthAuthenticated) {
-        final firestore = ref.read(firestoreDataSourceProvider);
         await firestore.setUserPreference(
           authState.user.id,
           'notificationsEnabled',
           value,
         );
+
+        if (value) {
+          // If enabled, ensure we have the token synced
+          final token = await notificationService.getFCMToken();
+          if (token != null) {
+            await firestore.updateUserFCMToken(authState.user.id, token);
+          }
+        }
       }
 
       // Save to local cache

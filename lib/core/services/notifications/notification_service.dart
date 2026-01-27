@@ -31,6 +31,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   GlobalKey<NavigatorState>? _navigatorKey;
+  String? _pendingNotificationPath;
 
   // FCM Server Key - Get from Firebase Console > Project Settings > Cloud Messaging > Server Key
   // WARNING: This should be stored securely, not hardcoded in production
@@ -38,6 +39,12 @@ class NotificationService {
 
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
+    if (_pendingNotificationPath != null) {
+      debugPrint('Processing pending notification path: $_pendingNotificationPath');
+      final path = _pendingNotificationPath!;
+      _pendingNotificationPath = null;
+      _navigateToPath(path);
+    }
   }
 
   static const String _channelId = 'devquote_channel';
@@ -186,10 +193,15 @@ class NotificationService {
   }
 
   void _navigateToQuoteId(String quoteId) {
+    _navigateToPath('/quote/$quoteId');
+  }
+
+  void _navigateToPath(String path) {
     if (_navigatorKey?.currentContext != null) {
-      GoRouter.of(_navigatorKey!.currentContext!).go('/quote/$quoteId');
+      GoRouter.of(_navigatorKey!.currentContext!).go(path);
     } else {
-      debugPrint('Navigator key not set or context not available');
+      debugPrint('Navigator key not set or context not available. Storing path: $path');
+      _pendingNotificationPath = path;
     }
   }
 

@@ -28,6 +28,7 @@ abstract class FirestoreDataSource {
   // User preferences
   Future<bool> getUserPreference(String userId, String key, bool defaultValue);
   Future<void> setUserPreference(String userId, String key, bool value);
+  Future<void> updateUserFCMToken(String userId, String token);
 }
 
 class FirestoreDataSourceImpl implements FirestoreDataSource {
@@ -60,9 +61,10 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
 
   @override
   Future<QuoteDto> getRandomQuote() async {
-    final query = await _firestore.collection('quotes').limit(10).get();
+    // Pull a larger set to ensure better randomness
+    final query = await _firestore.collection('quotes').limit(50).get();
     if (query.docs.isEmpty) throw Exception('No quotes found');
-    final docs = query.docs;
+    final docs = List.from(query.docs);
     docs.shuffle();
     return QuoteDto.fromFirestore(docs.first);
   }
@@ -245,6 +247,14 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
   }
 
   @override
+  Future<void> updateUserFCMToken(String userId, String token) async {
+    await _firestore.collection('users').doc(userId).update({
+      'fcmToken': token,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Stream<List<String>> getFavoritesIds(String userId) {
     return _firestore
         .collection('favorites')
@@ -284,6 +294,7 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
     });
   }
 
+  @override
   Future<void> deleteQuote(String quoteId) async {
     final doc = await _firestore.collection('quotes').doc(quoteId).get();
     if (doc.exists) {

@@ -3,6 +3,7 @@ import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
 import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
+import 'package:dev_quotes/core/services/rate_limit_service.dart';
 import 'package:dev_quotes/data/dto/user_dto.dart';
 import 'package:dev_quotes/data/mappers/user_mapper.dart';
 import 'package:dev_quotes/data/models/user_model.dart';
@@ -14,27 +15,36 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _authDataSource;
   final FirestoreDataSource _firestoreDataSource;
   final LocalDataSource _localDataSource;
+  final RateLimitService _rateLimitService;
 
   AuthRepositoryImpl({
     required AuthRemoteDataSource authDataSource,
     required FirestoreDataSource firestoreDataSource,
     required LocalDataSource localDataSource,
+    required RateLimitService rateLimitService,
   }) : _authDataSource = authDataSource,
        _firestoreDataSource = firestoreDataSource,
-       _localDataSource = localDataSource;
+       _localDataSource = localDataSource,
+       _rateLimitService = rateLimitService;
 
   @override
   Future<Result<User>> login(String email, String password) async {
+    if (_rateLimitService.isLocked('login')) {
+      return Error(RateLimitFailure(_rateLimitService.getLockMessage('login')));
+    }
+
     try {
       final credential = await _authDataSource.login(email, password);
       final userDto = await _firestoreDataSource.getUser(credential.user!.uid);
       if (userDto != null) {
         await _localDataSource.cacheUser(userDto);
+        _rateLimitService.clearAttempts('login');
         return Success(UserMapper.toDomain(userDto));
       } else {
         return const Error(ServerFailure('User data not found'));
       }
     } catch (e) {
+      _rateLimitService.recordAttempt('login');
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
@@ -51,6 +61,10 @@ class AuthRepositoryImpl implements AuthRepository {
     String password,
     String username,
   ) async {
+    if (_rateLimitService.isLocked('signup')) {
+      return Error(RateLimitFailure(_rateLimitService.getLockMessage('signup')));
+    }
+
     try {
       final credential = await _authDataSource.signup(email, password);
       final newUser = UserDto(
@@ -60,8 +74,10 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       await _firestoreDataSource.saveUser(newUser);
       await _localDataSource.cacheUser(newUser);
+      _rateLimitService.clearAttempts('signup');
       return Success(UserMapper.toDomain(newUser));
     } catch (e) {
+      _rateLimitService.recordAttempt('signup');
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
@@ -154,10 +170,18 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Result<void>> resetPassword(String email) async {
+    if (_rateLimitService.isLocked('reset_password')) {
+      return Error(
+        RateLimitFailure(_rateLimitService.getLockMessage('reset_password')),
+      );
+    }
+
     try {
       await _authDataSource.resetPassword(email);
+      _rateLimitService.clearAttempts('reset_password');
       return const Success(null);
     } catch (e) {
+      _rateLimitService.recordAttempt('reset_password');
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
@@ -173,10 +197,20 @@ class AuthRepositoryImpl implements AuthRepository {
     String code,
     String newPassword,
   ) async {
+    if (_rateLimitService.isLocked('confirm_password_reset')) {
+      return Error(
+        RateLimitFailure(
+          _rateLimitService.getLockMessage('confirm_password_reset'),
+        ),
+      );
+    }
+
     try {
       await _authDataSource.confirmPasswordReset(code, newPassword);
+      _rateLimitService.clearAttempts('confirm_password_reset');
       return const Success(null);
     } catch (e) {
+      _rateLimitService.recordAttempt('confirm_password_reset');
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
