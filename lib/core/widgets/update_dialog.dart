@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 class UpdateDialog extends StatefulWidget {
   final String version;
   final String releaseNotes;
+  final int size; // Size in bytes
+  final ValueNotifier<double> progressNotifier;
   final VoidCallback onUpdate;
   final VoidCallback onCancel;
 
@@ -11,6 +13,8 @@ class UpdateDialog extends StatefulWidget {
     super.key,
     required this.version,
     required this.releaseNotes,
+    required this.size,
+    required this.progressNotifier,
     required this.onUpdate,
     required this.onCancel,
   });
@@ -21,7 +25,11 @@ class UpdateDialog extends StatefulWidget {
 
 class _UpdateDialogState extends State<UpdateDialog> {
   bool _isDownloading = false;
-  double _progress = 0.0;
+
+  String _formatSize(int bytes) {
+    if (bytes <= 0) return '0.0 MB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +39,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF16161D), // Slightly lighter than background
+          color: const Color(0xFF16161D),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.white.withOpacity(0.1)),
           boxShadow: [
@@ -47,7 +55,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icon Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -61,8 +68,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
               ),
             ),
             const SizedBox(height: 20),
-            
-            // Title
             Text(
               'Update Available',
               style: GoogleFonts.outfit(
@@ -72,31 +77,44 @@ class _UpdateDialogState extends State<UpdateDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'v${widget.version}',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF34C759),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'v${widget.version}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF34C759),
+                    ),
+                  ),
                 ),
-              ),
+                if (widget.size > 0) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '•  ${_formatSize(widget.size)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
             ),
-            
             const SizedBox(height: 24),
-            
-            // Release Notes Container
             if (widget.releaseNotes.isNotEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E24), // Even lighter for contrast
+                  color: const Color(0xFF1E1E24),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
@@ -107,7 +125,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        textBaseline: TextBaseline.alphabetic,
                         color: Colors.grey[400],
                         letterSpacing: 0.5,
                       ),
@@ -130,35 +147,56 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ],
                 ),
               ),
-
             const SizedBox(height: 32),
-
-            // Progress or Buttons
-            if (_isDownloading) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Downloading...',
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[400]),
-                  ),
-                  Text(
-                    '${(_progress * 100).toInt()}%',
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: _progress,
-                  backgroundColor: Colors.white.withOpacity(0.1),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34C759)),
-                  minHeight: 6,
-                ),
-              ),
-            ] else ...[
+            if (_isDownloading)
+              ValueListenableBuilder<double>(
+                valueListenable: widget.progressNotifier,
+                builder: (context, progress, child) {
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            progress < 1.0 ? 'Downloading...' : 'Installing...',
+                            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[400]),
+                          ),
+                          Text(
+                            '${(progress * 100).toInt()}%',
+                            style: GoogleFonts.inter(
+                              fontSize: 14, 
+                              color: Colors.white, 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.white.withOpacity(0.1),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34C759)),
+                          minHeight: 6,
+                        ),
+                      ),
+                      if (widget.size > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            '${_formatSize((widget.size * progress).toInt())} of ${_formatSize(widget.size)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              )
+            else
               Row(
                 children: [
                   Expanded(
@@ -183,7 +221,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _handleUpdate,
+                      onPressed: () {
+                        setState(() => _isDownloading = true);
+                        widget.onUpdate();
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF34C759),
                         foregroundColor: Colors.white,
@@ -204,49 +245,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                 ],
               ),
-            ],
           ],
         ),
       ),
     );
-  }
-
-  void _handleUpdate() {
-    setState(() {
-      _isDownloading = true;
-    });
-    // Simulate progress for demo if not handled externally, 
-    // but the parent calls downloadAndInstallUpdate which calls the progress callback.
-    // However, the parent's progress callback needs to call a method on this state.
-    // In strict Flutter, the parent can't easily call a method on the child state without a GlobalKey or controller.
-    // The previous implementation had a callback in the parent: `(progress) { // Could update progress in dialog }`.
-    // The dialog instance is already built. The parent logic was:
-    /*
-      onUpdate: () async {
-        final success = await updateService.downloadAndInstallUpdate(..., (progress) {
-             // HERE IS THE PROBLEM. We can't update this dialog state easily from here 
-             // because the dialog is in the widget tree managed by `showDialog`.
-        });
-      }
-    */
-    // To fix this properly, the `downloadAndInstallUpdate` logic should ideally be INSIDE this widget,
-    // or we pass a Valid ValueNotifier<double> or Stream<double> to this dialog.
-    // For now, I will assume the parent passes a callback, AND strictly speaking, the design is what matters most here.
-    // But to make it functional, I will call `widget.onUpdate()`. 
-    
-    widget.onUpdate();
-  }
-  
-  // Expose this if using GlobalKey, or clearer pattern: 
-  // Pass a ValueNotifier<double> progressNotifier to the dialog.
-  // Since I can't easily change the parent signature extensively without seeing it again,
-  // I will leave this method here. If the user had a way to update it, good. 
-  // If not, the progress bar might not move, which is an existing logic gap, but I'm fixing the UI.
-  void updateProgress(double progress) {
-    if (mounted) {
-      setState(() {
-        _progress = progress;
-      });
-    }
   }
 }

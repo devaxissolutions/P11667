@@ -12,6 +12,7 @@ import '../widgets/settings_toggle_tile.dart';
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/widgets/update_dialog.dart';
 import 'package:dev_quotes/core/services/update_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -67,25 +68,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _showSnackBar(context, 'You are using the latest version.');
           break;
         case UpdateCheckResult.updateAvailable:
-          // Proceed to fetch details
           final releaseInfo = await updateService.getLatestReleaseInfo();
           if (releaseInfo != null && mounted) {
-             // Hide the "Checking..." snackbar or just let it be
-             if (context.mounted) {
-               showDialog(
+            final progressNotifier = ValueNotifier<double>(0);
+            if (context.mounted) {
+              showDialog(
                 context: context,
                 barrierDismissible: false,
                 builder: (context) => UpdateDialog(
                   version: releaseInfo['version'],
                   releaseNotes: releaseInfo['releaseNotes'],
+                  size: releaseInfo['size'] ?? 0,
+                  progressNotifier: progressNotifier,
                   onUpdate: () async {
-                    // Start download
                     final success = await updateService.downloadAndInstallUpdate(
                       releaseInfo['downloadUrl'],
                       (progress) {
-                        // The dialog handles its own state if wired up, 
-                        // or we rely on the existing simplistic binding.
-                        // Ideally we'd pass a controller, but adhering to minimal UI changes:
+                        progressNotifier.value = progress;
                       },
                       () {
                         Navigator.of(context).pop();
@@ -95,19 +94,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Navigator.of(context).pop();
                       _showSnackBar(context, 'Update downloaded successfully');
                     } else if (context.mounted) {
-                      // Only show failed if it wasn't just cancelled/closed successfully logic
-                      // But downloadAndInstallUpdate returns false on error.
-                      // Note: It returns false on user cancel in some implementations? 
-                      // No, current logic returns false on error.
                       _showSnackBar(context, 'Update failed or cancelled', isError: true);
+                      Navigator.of(context).pop();
                     }
                   },
-                  onCancel: () => Navigator.of(context).pop(),
+                  onCancel: () {
+                    progressNotifier.dispose();
+                    Navigator.of(context).pop();
+                  },
                 ),
               );
-             }
+            }
           } else {
-             _showSnackBar(context, 'Failed to load update details.', isError: true);
+            _showSnackBar(context, 'Failed to load update details.', isError: true);
           }
           break;
       }
@@ -118,6 +117,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         });
       }
     }
+  }
+
+  Future<String> _getVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return packageInfo.version;
   }
 
   @override
@@ -270,12 +274,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Center(
               child: Column(
                 children: [
-                  Text(
-                    'DevQuote v1.0.2',
-                    style: GoogleFonts.inter(
-                      color: Colors.grey[600],
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                  FutureBuilder<String>(
+                    future: _getVersion(),
+                    builder: (context, snapshot) => Text(
+                      'DevQuote v${snapshot.data ?? '1.2.0'}',
+                      style: GoogleFonts.inter(
+                        color: Colors.grey[600],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),

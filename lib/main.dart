@@ -135,18 +135,21 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
   }
 
   void _showUpdateDialog(Map<String, dynamic> releaseInfo) {
+    final progressNotifier = ValueNotifier<double>(0);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => UpdateDialog(
         version: releaseInfo['version'],
         releaseNotes: releaseInfo['releaseNotes'],
+        size: releaseInfo['size'] ?? 0,
+        progressNotifier: progressNotifier,
         onUpdate: () async {
           final updateService = ref.read(updateServiceProvider);
           final success = await updateService.downloadAndInstallUpdate(
             releaseInfo['downloadUrl'],
             (progress) {
-              // Update progress in dialog if needed
+              progressNotifier.value = progress;
             },
             () {
               if (mounted && dialogContext.mounted) {
@@ -154,17 +157,13 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
               }
             },
           );
-          // Capture the root context before async gap if possible, or reliably check mounted
-          // Note: dialogContext is for the dialog. `context` is the state's context.
           
           if (!mounted) return;
           
-          // Close dialog first
           if (dialogContext.mounted) {
             Navigator.of(dialogContext).pop();
           }
 
-          // Then show snackbar using state context
           if (mounted) {
              if (success) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -178,6 +177,7 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
           }
         },
         onCancel: () {
+          progressNotifier.dispose();
           if (dialogContext.mounted) {
             Navigator.of(dialogContext).pop();
           }

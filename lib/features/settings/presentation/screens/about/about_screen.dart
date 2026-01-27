@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -75,23 +76,28 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                ),
-              ),
-              child: Text(
-                'v1.0.0 Beta',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF8B5CF6),
-                ),
-              ),
+            FutureBuilder<String>(
+              future: _getVersion(),
+              builder: (context, snapshot) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                    ),
+                  ),
+                  child: Text(
+                    'v${snapshot.data ?? '1.2.0'}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF8B5CF6),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 48),
             
@@ -233,6 +239,11 @@ class AboutScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<String> _getVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return packageInfo.version;
   }
 
   Future<void> _launchUrl(String urlString) async {
