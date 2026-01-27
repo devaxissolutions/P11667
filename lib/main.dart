@@ -135,6 +135,10 @@ class _DevQuoteAppState extends ConsumerState<DevQuoteApp> {
   }
 
   void _showUpdateDialog(Map<String, dynamic> releaseInfo) {
+    final navigatorKey = ref.read(navigatorKeyProvider);
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
     final progressNotifier = ValueNotifier<double>(0);
     showDialog(
       context: context,

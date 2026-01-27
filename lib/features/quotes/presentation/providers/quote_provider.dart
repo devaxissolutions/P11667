@@ -64,7 +64,17 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
             .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]),
       );
       
-      state = AsyncValue.data(quotesWrapper.take(10).toList());
+      // Fallback: If user has no quotes and default quotes are also missing, 
+      // show public quotes regardless of setting.
+      if (quotesWrapper.isEmpty && !showPublicQuotes) {
+        final fallbackQuotes = await repository
+            .getQuoteFeed(userId, true)
+            .first
+            .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]);
+        state = AsyncValue.data(fallbackQuotes.take(10).toList());
+      } else {
+        state = AsyncValue.data(quotesWrapper.take(10).toList());
+      }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }

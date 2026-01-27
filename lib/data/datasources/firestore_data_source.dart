@@ -206,11 +206,13 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
     }
 
     return query
-        .orderBy('timestamp', descending: true)
         .limit(50) // Reasonable limit for stream
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => QuoteDto.fromFirestore(doc)).toList();
+      final quotes = snapshot.docs.map((doc) => QuoteDto.fromFirestore(doc)).toList();
+      // Sort in-memory to avoid index requirement for complex OR filters
+      quotes.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return quotes;
     });
   }
 
