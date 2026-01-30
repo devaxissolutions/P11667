@@ -15,7 +15,7 @@ abstract class FirestoreDataSource {
   Future<List<QuoteDto>> getQuotesByIds(List<String> ids);
   Future<List<QuoteDto>> getQuotesByCategory(String categoryId);
   Future<List<CategoryDto>> getCategories();
-  Future<List<QuoteDto>> searchQuotes(String query);
+  Future<List<QuoteDto>> searchQuotes(String query, {String? author, String? category});
   Future<String> addQuote(QuoteDto quote);
   Future<void> updateQuote(QuoteDto quote);
   Future<void> deleteQuote(String quoteId, String currentUserId);
@@ -26,11 +26,17 @@ abstract class FirestoreDataSource {
   Stream<List<String>> getFavoritesIds(String userId);
   Future<void> addFavorite(String userId, String quoteId);
   Future<void> removeFavorite(String userId, String quoteId);
+  Future<List<QuoteDto>> getFavorites(String userId);
 
   // User preferences
   Future<bool> getUserPreference(String userId, String key, bool defaultValue);
   Future<void> setUserPreference(String userId, String key, bool value);
   Future<void> updateUserFCMToken(String userId, String token);
+
+  // OFFLINE-FIRST: Methods for sync operations
+  Future<void> addQuoteFromJson(Map<String, dynamic> data);
+  Future<void> updateQuoteFromJson(String quoteId, Map<String, dynamic> data);
+  Future<void> saveUserFromJson(Map<String, dynamic> data);
 }
 
 class FirestoreDataSourceImpl implements FirestoreDataSource {
@@ -150,7 +156,7 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
   }
 
   @override
-  Future<List<QuoteDto>> searchQuotes(String queryText) async {
+  Future<List<QuoteDto>> searchQuotes(String queryText, {String? author, String? category}) async {
     // SECURITY FIX: Sanitize and validate input
     final sanitized = queryText.trim();
     
@@ -396,5 +402,48 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
         );
       }
     });
+  }
+
+  // OFFLINE-FIRST: Methods for sync operations
+  @override
+  Future<void> addQuoteFromJson(Map<String, dynamic> data) async {
+    final quoteId = data['id'] as String?;
+    if (quoteId == null) {
+      throw ArgumentError('Quote ID is required');
+    }
+    await _firestore.collection('quotes').doc(quoteId).set(data);
+  }
+
+  @override
+  Future<void> updateQuoteFromJson(String quoteId, Map<String, dynamic> data) async {
+    await _firestore.collection('quotes').doc(quoteId).update(data);
+  }
+
+  @override
+  Future<void> saveUserFromJson(Map<String, dynamic> data) async {
+    final userId = data['id'] as String?;
+    if (userId == null) {
+      throw ArgumentError('User ID is required');
+    }
+    await _firestore.collection('users').doc(userId).set(data, SetOptions(merge: true));
+  }
+
+  @override
+  Future<List<QuoteDto>> getFavorites(String userId) async {
+    final favoritesSnapshot = await _firestore
+        .collection('favorites')
+        .doc(userId)
+        .collection('items')
+        .get();
+    
+    final quoteIds = favoritesSnapshot.docs.map((doc) => doc.id).toList();
+    if (quoteIds.isEmpty) return [];
+    
+    final quotesSnapshot = await _firestore
+        .collection('quotes')
+        .where(FieldPath.documentId, whereIn: quoteIds)
+        .get();
+    
+    return quotesSnapshot.docs.map((doc) => QuoteDto.fromFirestore(doc)).toList();
   }
 }

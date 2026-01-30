@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'core/theme/theme.dart';
 import 'core/widgets/update_dialog.dart';
 import 'routes/app_router.dart';
 
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/services/notifications/notification_service.dart';
+
 import 'package:dev_quotes/core/utils/logger.dart';
 import 'package:dev_quotes/core/utils/seed_data.dart';
 import 'package:dev_quotes/firebase_options.dart';
@@ -18,6 +20,7 @@ import 'package:firebase_performance/firebase_performance.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dev_quotes/core/services/update_service.dart';
 import 'package:dev_quotes/core/services/session_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -28,6 +31,9 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
+  // Initialize Hive for offline-first architecture
+  await Hive.initFlutter();
+
   // Declare startupTrace variable
   Trace? startupTrace;
 
@@ -35,6 +41,12 @@ void main() async {
     // Initialize Firebase with generated options
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // OFFLINE-FIRST: Enable Firestore offline persistence
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
 
     // MEDIUM SECURITY FIX: Activate Firebase App Check

@@ -6,6 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
 import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
+import 'package:dev_quotes/data/datasources/local/hive_local_data_source.dart';
+import 'package:dev_quotes/data/datasources/local/sync_queue_local_data_source.dart';
 import 'package:dev_quotes/data/repositories/impl/auth_repository_impl.dart';
 import 'package:dev_quotes/data/repositories/impl/category_repository_impl.dart';
 import 'package:dev_quotes/data/repositories/impl/profile_repository_impl.dart';
@@ -14,6 +16,7 @@ import 'package:dev_quotes/data/repositories/interfaces/auth_repository.dart';
 import 'package:dev_quotes/data/repositories/interfaces/category_repository.dart';
 import 'package:dev_quotes/data/repositories/interfaces/profile_repository.dart';
 import 'package:dev_quotes/data/repositories/interfaces/quote_repository.dart';
+import 'package:dev_quotes/core/services/offline/offline_sync_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -74,6 +77,25 @@ final firestoreDataSourceProvider = Provider<FirestoreDataSource>((ref) {
 
 final localDataSourceProvider = Provider<LocalDataSource>((ref) {
   return LocalDataSourceImpl(ref.watch(sharedPreferencesProvider));
+});
+
+// OFFLINE-FIRST: Hive local data source
+final hiveLocalDataSourceProvider = Provider<HiveLocalDataSource>((ref) {
+  return HiveLocalDataSource();
+});
+
+// OFFLINE-FIRST: Sync queue local data source
+final syncQueueLocalDataSourceProvider = Provider<SyncQueueLocalDataSource>((ref) {
+  return SyncQueueLocalDataSource();
+});
+
+// OFFLINE-FIRST: Offline sync service
+final offlineSyncServiceProvider = Provider<OfflineSyncService>((ref) {
+  return OfflineSyncService(
+    syncQueue: ref.watch(syncQueueLocalDataSourceProvider),
+    firestoreDataSource: ref.watch(firestoreDataSourceProvider),
+    localDataSource: ref.watch(hiveLocalDataSourceProvider),
+  );
 });
 
 // Repositories

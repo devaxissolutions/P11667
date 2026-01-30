@@ -31,14 +31,15 @@
         { "fieldPath": "category", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "quotes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "quoteText", "order": "ASCENDING" }
-      ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "quotes",
+      "fieldPath": "quoteText",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" }
+      ]
+    }
+  ]
 }
