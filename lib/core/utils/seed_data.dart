@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 
 /// Run this once to populate your Firestore database with sample quotes
 Future<void> seedQuotes() async {
@@ -166,7 +167,7 @@ Future<void> seedQuotes() async {
   }
 
   await batch.commit();
-  print('✅ Successfully seeded ${quotes.length} quotes to Firestore!');
+  Logger.d('✅ Successfully seeded ${quotes.length} quotes to Firestore!');
 }
 
 /// Seed categories
@@ -202,5 +203,5 @@ Future<void> seedCategories() async {
   }
 
   await batch.commit();
-  print('✅ Successfully seeded ${categories.length} categories to Firestore!');
+  Logger.d('✅ Successfully seeded ${categories.length} categories to Firestore!');
 }

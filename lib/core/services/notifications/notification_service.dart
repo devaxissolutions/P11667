@@ -4,17 +4,18 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 
 /// Top-level background message handler required by FCM plugin.
 /// Must be a top-level function.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Handle background message
-  debugPrint('Background message: ${message.messageId}');
+  Logger.d('Background message: ${message.messageId}');
   // For background messages, we can show local notification if needed
   // But typically, FCM handles it automatically for background
 }
@@ -38,7 +39,7 @@ class NotificationService {
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
     if (_pendingNotificationPath != null) {
-      debugPrint('Processing pending notification path: $_pendingNotificationPath');
+      Logger.d('Processing pending notification path: $_pendingNotificationPath');
       final path = _pendingNotificationPath!;
       _pendingNotificationPath = null;
       _navigateToPath(path);
@@ -129,7 +130,7 @@ class NotificationService {
       criticalAlert: false,
     );
 
-    debugPrint('FCM permission status: ${settings.authorizationStatus}');
+    Logger.d('FCM permission status: ${settings.authorizationStatus}');
     return settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
   }
@@ -144,7 +145,7 @@ class NotificationService {
     try {
       return await _messaging.getToken();
     } catch (e) {
-      debugPrint('Error getting FCM token: $e');
+      Logger.d('Error getting FCM token: $e');
       return null;
     }
   }
@@ -164,29 +165,29 @@ class NotificationService {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
-      debugPrint('FCM token updated for user: ${user.uid}');
+      Logger.d('FCM token updated for user: ${user.uid}');
     }
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('Foreground message: ${message.messageId}');
+    Logger.d('Foreground message: ${message.messageId}');
 
     // Show local notification for foreground messages
     _showLocalNotification(message);
   }
 
   void _handleMessageOpenedApp(RemoteMessage message) {
-    debugPrint('Message opened app: ${message.messageId}');
+    Logger.d('Message opened app: ${message.messageId}');
     _navigateToQuote(message);
   }
 
   void _handleInitialMessage(RemoteMessage message) {
-    debugPrint('Initial message: ${message.messageId}');
+    Logger.d('Initial message: ${message.messageId}');
     _navigateToQuote(message);
   }
 
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
+    Logger.d('Notification tapped: ${response.payload}');
     if (response.payload != null) {
       try {
         final data = jsonDecode(response.payload!);
@@ -195,7 +196,7 @@ class NotificationService {
           _navigateToQuoteId(quoteId);
         }
       } catch (e) {
-        debugPrint('Error parsing notification payload: $e');
+        Logger.d('Error parsing notification payload: $e');
       }
     }
   }
@@ -215,7 +216,7 @@ class NotificationService {
     if (_navigatorKey?.currentContext != null) {
       GoRouter.of(_navigatorKey!.currentContext!).go(path);
     } else {
-      debugPrint('Navigator key not set or context not available. Storing path: $path');
+      Logger.d('Navigator key not set or context not available. Storing path: $path');
       _pendingNotificationPath = path;
     }
   }
@@ -294,6 +295,6 @@ class NotificationService {
     // TODO: Implement via Cloud Functions or secure backend API
     // This method is intentionally disabled for security reasons.
     // Push notifications should be triggered server-side when a quote is created.
-    debugPrint('sendNewQuoteNotification: Notifications should be sent via Cloud Functions');
+    Logger.d('sendNewQuoteNotification: Notifications should be sent via Cloud Functions');
   }
 }

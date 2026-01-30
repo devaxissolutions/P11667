@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "958725673026",
+    "project_id": "devquotes-310a9",
+    "storage_bucket": "devquotes-310a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958725673026:android:702c2101d615b6a34c5ddb",
+        "android_client_info": {
+          "package_name": "com.devquote.dev_quote"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "958725673026-nd194unnb18s41k313todkpb2mmtlvca.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.devquote.dev_quote",
+            "certificate_hash": "6adb0d18f942cae2d193a70c9172e757d5a3f632"
+          }
+        },
+        {
+          "client_id": "958725673026-q173iglhhef0av7tbo402uttr61sc7d2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5PMQEBF_Ex1qyA-RpiEznvpbvglrACBY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "958725673026-q173iglhhef0av7tbo402uttr61sc7d2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "958725673026-17n3m3vnn2u2u0iek597eimt363s2kca.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devaxissolutions.devquotes"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

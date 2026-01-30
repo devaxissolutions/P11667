@@ -70,10 +70,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
-          ElevatedButton(
+            ElevatedButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              await openAppSettings();
+              await openAppSettings(); // Uses permission_handler
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

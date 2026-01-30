@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:open_file/open_file.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dev_quotes/core/services/circuit_breaker.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 
 
 enum UpdateCheckResult {
@@ -21,10 +23,23 @@ class UpdateService {
   static const String githubApiUrl =
       'https://api.github.com/repos/devaxissolutions/P11667/releases/latest';
 
+  static final UpdateService _instance = UpdateService._internal();
+  factory UpdateService() => _instance;
+  UpdateService._internal();
+  static UpdateService get instance => _instance;
+
   final Dio _dio = Dio(BaseOptions(
     receiveTimeout: const Duration(minutes: 2),
     sendTimeout: const Duration(minutes: 2),
   ));
+  
+  // MEDIUM SECURITY FIX: Circuit breaker for GitHub API calls
+  final CircuitBreaker _circuitBreaker = CircuitBreaker(
+    name: 'github_api',
+    failureThreshold: 3,
+    timeoutDuration: const Duration(seconds: 10),
+    resetTimeout: const Duration(minutes: 5),
+  );
 
   Future<UpdateCheckResult> isUpdateAvailable() async {
     try {
@@ -33,34 +48,33 @@ class UpdateService {
         return UpdateCheckResult.noInternet;
       }
 
-      final response = await _dio.get(githubApiUrl);
+      // MEDIUM SECURITY FIX: Use circuit breaker for GitHub API call
+      final response = await _circuitBreaker.execute(() => _dio.get(githubApiUrl));
       if (response.statusCode == 200) {
         final data = response.data;
         final latestTag = data['tag_name'] as String;
         final currentVersion = await _getCurrentVersion();
 
-        debugPrint('Checking versions: Latest=$latestTag, Current=$currentVersion');
-
         if (_isVersionNewer(latestTag, currentVersion)) {
-          debugPrint('Update available: $latestTag > $currentVersion');
+          Logger.d('Update available: $latestTag > $currentVersion');
           return UpdateCheckResult.updateAvailable;
         } else {
-          debugPrint('No update needed: $latestTag is not newer than $currentVersion');
+          Logger.d('No update needed: $latestTag is not newer than $currentVersion');
           return UpdateCheckResult.noUpdate;
         }
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        debugPrint('GitHub API 404: No releases found or repository is private.');
+        Logger.d('GitHub API 404: No releases found or repository is private.');
         return UpdateCheckResult.error;
       } else if (e.response?.statusCode == 403) {
-        debugPrint('GitHub API 403: Rate Limit Exceeded');
+        Logger.d('GitHub API 403: Rate Limit Exceeded');
         return UpdateCheckResult.rateLimitExceeded;
       } else {
-        debugPrint('Network error checking for updates: ${e.message}');
+        Logger.d('Network error checking for updates: ${e.message}');
       }
     } catch (e) {
-      debugPrint('Unexpected error checking for updates: $e');
+      Logger.d('Unexpected error checking for updates: $e');
     }
     return UpdateCheckResult.error;
   }
@@ -85,7 +99,7 @@ class UpdateService {
 
       return latestVer > currentVer;
     } catch (e) {
-      debugPrint('Semantic version parse failed, falling back to basic comparison: $e');
+      Logger.d('Semantic version parse failed, falling back to basic comparison: $e');
       return _basicVersionComparison(latest, current);
     }
   }
@@ -130,7 +144,7 @@ class UpdateService {
         }
       }
     } catch (e) {
-      debugPrint('Error fetching release info: $e');
+      Logger.d('Error fetching release info: $e');
     }
     return null;
   }
@@ -145,13 +159,32 @@ class UpdateService {
     String? downloadedFilePath;
     
     try {
+      // MEDIUM SECURITY FIX: Verify HTTPS and trusted domain
+      if (!downloadUrl.startsWith('https://')) {
+        return {
+          'success': false,
+          'error': 'Insecure download URL. Only HTTPS is allowed.',
+        };
+      }
+      
+      // Verify domain is trusted (GitHub)
+      final uri = Uri.parse(downloadUrl);
+      final trustedDomains = ['github.com', 'githubusercontent.com'];
+      final isTrusted = trustedDomains.any((domain) => uri.host.endsWith(domain));
+      if (!isTrusted) {
+        return {
+          'success': false,
+          'error': 'Untrusted download source.',
+        };
+      }
+      
       // 1. Get temp directory
       final tempDir = await getTemporaryDirectory();
       final fileName = 'update_${DateTime.now().millisecondsSinceEpoch}.apk';
       downloadedFilePath = '${tempDir.path}/$fileName';
 
       // 2. Download APK first
-      debugPrint('Downloading APK to: $downloadedFilePath');
+      Logger.d('Downloading APK to: $downloadedFilePath');
       await _dio.download(
         downloadUrl,
         downloadedFilePath,
@@ -163,7 +196,7 @@ class UpdateService {
         },
       );
       
-      debugPrint('Download completed successfully');
+      Logger.d('Download completed successfully');
 
       // 3. After download completes, request install permission (Android)
       if (Platform.isAndroid) {
@@ -179,11 +212,11 @@ class UpdateService {
       }
 
       // 4. Install APK
-      debugPrint('Installing APK from: $downloadedFilePath');
+      Logger.d('Installing APK from: $downloadedFilePath');
       final result = await OpenFile.open(downloadedFilePath);
       
       if (result.type != ResultType.done) {
-        debugPrint('OpenFile error: ${result.message}');
+        Logger.d('OpenFile error: ${result.message}');
         return {
           'success': false,
           'error': 'Failed to open APK installer: ${result.message}',
@@ -192,7 +225,7 @@ class UpdateService {
 
       return {'success': true};
     } catch (e) {
-      debugPrint('Error downloading/installing update: $e');
+      Logger.d('Error downloading/installing update: $e');
       return {
         'success': false,
         'error': 'Download failed: ${e.toString()}',
@@ -206,7 +239,7 @@ class UpdateService {
     try {
       // Check current permission status
       var status = await Permission.requestInstallPackages.status;
-      debugPrint('Current install permission status: $status');
+      Logger.d('Current install permission status: $status');
 
       if (status.isGranted) {
         return {'granted': true};
@@ -214,7 +247,7 @@ class UpdateService {
 
       // If permanently denied, we need to open settings
       if (status.isPermanentlyDenied) {
-        debugPrint('Install permission is permanently denied');
+        Logger.d('Install permission is permanently denied');
         return {
           'granted': false,
           'error': 'Permission to install apps is permanently denied. Please enable it in Settings.',
@@ -223,9 +256,9 @@ class UpdateService {
       }
 
       // Request permission
-      debugPrint('Requesting install permission...');
+      Logger.d('Requesting install permission...');
       status = await Permission.requestInstallPackages.request();
-      debugPrint('Permission request result: $status');
+      Logger.d('Permission request result: $status');
 
       if (status.isGranted) {
         return {'granted': true};
@@ -246,7 +279,7 @@ class UpdateService {
         'permanentlyDenied': false,
       };
     } catch (e) {
-      debugPrint('Error requesting install permission: $e');
+      Logger.d('Error requesting install permission: $e');
       return {
         'granted': false,
         'error': 'Failed to request install permission: ${e.toString()}',
@@ -256,6 +289,6 @@ class UpdateService {
 
   /// Open app settings so user can manually enable the install permission
   Future<bool> openAppSettings() async {
-    return await openAppSettings();
+    return await Permission.requestInstallPackages.isGranted;
   }
 }

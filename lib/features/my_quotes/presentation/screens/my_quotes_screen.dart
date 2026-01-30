@@ -7,6 +7,8 @@ import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/utils/string_utils.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:dev_quotes/data/models/quote_model.dart';
+import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
+import 'package:dev_quotes/features/auth/models/auth_state.dart';
 import 'package:dev_quotes/features/quotes/presentation/providers/quote_provider.dart';
 import 'package:dev_quotes/features/quotes/presentation/screens/edit_quote_screen.dart';
 
@@ -71,8 +73,15 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
     );
 
     if (confirmed == true) {
+      // SECURITY FIX: Get current user ID for authorization check
+      final authState = ref.read(authProvider).value;
+      if (authState is! AuthAuthenticated) {
+        _showSnackBar('You must be logged in to delete quotes', isError: true);
+        return;
+      }
+      
       final repository = ref.read(quoteRepositoryProvider);
-      final result = await repository.deleteQuote(quoteId);
+      final result = await repository.deleteQuote(quoteId, authState.user.id);
 
       if (result is Success) {
         _showSnackBar('Quote deleted successfully');

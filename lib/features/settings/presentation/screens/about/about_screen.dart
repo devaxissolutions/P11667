@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -249,7 +250,7 @@ class AboutScreen extends StatelessWidget {
   Future<void> _launchUrl(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      debugPrint('Could not launch $url');
+      Logger.d('Could not launch $url');
     }
   }
 }

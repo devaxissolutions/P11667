@@ -1,5 +1,6 @@
 import 'package:dev_quotes/core/error/failures.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
 import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
@@ -35,6 +36,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       final credential = await _authDataSource.login(email, password);
+      
+      // HIGH SECURITY FIX: Handle null user properly
+      if (credential.user == null) {
+        return const Error(AuthFailure('Authentication failed'));
+      }
+      
       final userDto = await _firestoreDataSource.getUser(credential.user!.uid);
       if (userDto != null) {
         await _localDataSource.cacheUser(userDto);
@@ -43,13 +50,18 @@ class AuthRepositoryImpl implements AuthRepository {
       } else {
         return const Error(ServerFailure('User data not found'));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       _rateLimitService.recordAttempt('login');
+      
+      // HIGH SECURITY FIX: Log detailed error internally, return generic message to user
+      Logger.e('Login failed', e, stackTrace);
+      
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
       } else {
-        message = 'Something went wrong. Please try again.';
+        // Return generic message to prevent information disclosure
+        message = 'Authentication failed. Please try again.';
       }
       return Error(AuthFailure(message));
     }
@@ -76,13 +88,18 @@ class AuthRepositoryImpl implements AuthRepository {
       await _localDataSource.cacheUser(newUser);
       _rateLimitService.clearAttempts('signup');
       return Success(UserMapper.toDomain(newUser));
-    } catch (e) {
+    } catch (e, stackTrace) {
       _rateLimitService.recordAttempt('signup');
+      
+      // HIGH SECURITY FIX: Log detailed error internally, return generic message to user
+      Logger.e('Signup failed', e, stackTrace);
+      
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
       } else {
-        message = 'Something went wrong. Please try again.';
+        // Return generic message to prevent information disclosure
+        message = 'Registration failed. Please try again.';
       }
       return Error(AuthFailure(message));
     }
@@ -142,6 +159,12 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<User>> signInWithGoogle() async {
     try {
       final credential = await _authDataSource.signInWithGoogle();
+      
+      // HIGH SECURITY FIX: Handle null user properly
+      if (credential.user == null) {
+        return const Error(AuthFailure('Google authentication failed'));
+      }
+      
       var userDto = await _firestoreDataSource.getUser(credential.user!.uid);
 
       if (userDto == null) {
@@ -157,12 +180,16 @@ class AuthRepositoryImpl implements AuthRepository {
 
       await _localDataSource.cacheUser(userDto);
       return Success(UserMapper.toDomain(userDto));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // HIGH SECURITY FIX: Log detailed error internally, return generic message to user
+      Logger.e('Google sign-in failed', e, stackTrace);
+      
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
       } else {
-        message = 'Something went wrong. Please try again.';
+        // Return generic message to prevent information disclosure
+        message = 'Google sign-in failed. Please try again.';
       }
       return Error(AuthFailure(message));
     }

@@ -33,11 +33,27 @@ class UserDto {
   }
 
   Map<String, dynamic> toFirestore() {
+    // MEDIUM SECURITY FIX: Validate fields before saving
+    if (username.length > 50) {
+      throw ArgumentError('Username must be 50 characters or less');
+    }
+    
+    if (bio != null && bio!.length > 500) {
+      throw ArgumentError('Bio must be 500 characters or less');
+    }
+    
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      final uri = Uri.tryParse(photoUrl!);
+      if (uri == null || !uri.isAbsolute) {
+        throw ArgumentError('Invalid photo URL');
+      }
+    }
+
     return {
-      'email': email,
-      'username': username,
-      'photoURL': photoUrl,
-      'bio': bio,
+      'email': email.trim(),
+      'username': username.trim(),
+      'photoURL': photoUrl?.trim(),
+      'bio': bio?.trim(),
       'favoritesCount': favoritesCount,
       'quotesCount': quotesCount,
     };

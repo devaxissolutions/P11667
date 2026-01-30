@@ -9,6 +9,9 @@
 .history
 .svn/
 .thumbs.db
+*.md
+!README.md
+*.sh
 
 # IntelliJ related
 *.iml
@@ -45,6 +48,26 @@ app.*.map.json
 android/gradle/wrapper/gradle-wrapper.jar
 android/.gradle/
 android/captures/
+android/app/google-services.json
+android/app/key.jks
+android/app/keystore.properties
+
+# iOS
+ios/Runner/GoogleService-Info.plist
+ios/Pods/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+.env.example
+.env copy
+
+# Firebase
+firebase_options.dart.bak
+lib/firebase_options_dev.dart
+lib/firebase_options_prod.dart
 android/local.properties
 android/key.properties
 **/android/**/build/

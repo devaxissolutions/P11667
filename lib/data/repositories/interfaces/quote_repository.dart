@@ -11,7 +11,7 @@ abstract class QuoteRepository {
   });
   Future<Result<String>> addQuote(Quote quote);
   Future<Result<void>> updateQuote(Quote quote);
-  Future<Result<void>> deleteQuote(String quoteId);
+  Future<Result<void>> deleteQuote(String quoteId, String currentUserId);
   Stream<List<Quote>> getFavorites(String userId);
   Stream<List<Quote>> getUserQuotes(String userId);
   Stream<List<Quote>> getPublicQuotes();

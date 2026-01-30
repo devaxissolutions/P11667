@@ -60,9 +60,11 @@ service cloud.firestore {
                   // Handling missing fields for legacy:
                   // allow read: if resource.data.get('isPublic', true) == true || resource.data.get('isDefault', false) == true || request.auth.uid == resource.data.userId;
       
-      allow read: if resource.data.get('isPublic', true) == true 
-                  || resource.data.get('isDefault', false) == true 
-                  || (isAuthenticated() && request.auth.uid == resource.data.userId);
+      // Require authentication for all reads
+      allow read: if isAuthenticated() 
+                  && (resource.data.get('isPublic', true) == true 
+                      || resource.data.get('isDefault', false) == true 
+                      || request.auth.uid == resource.data.userId);
 
       // Create: Authenticated users can create quotes
       allow create: if isAuthenticated() 
@@ -78,10 +80,27 @@ service cloud.firestore {
       // Update: Only the owner (creator) can update
       allow update: if isQuoteOwner(resource.data)
                     // Ensure ownership doesn't change
-                    && request.resource.data.userId == resource.data.userId;
+                    && request.resource.data.userId == resource.data.userId
+                    // Validate updated data schema
+                    && request.resource.data.keys().hasAll(['quoteText', 'author', 'category', 'userId', 'timestamp'])
+                    && request.resource.data.quoteText is string
+                    && request.resource.data.quoteText.size() > 0
+                    && request.resource.data.quoteText.size() < 500
+                    && request.resource.data.author is string
+                    && request.resource.data.author.size() > 0
+                    && request.resource.data.author.size() < 100
+                    && request.resource.data.category is string
+                    && request.resource.data.category.size() > 0
+                    && request.resource.data.timestamp is timestamp
+                    // Prevent modifying isDefault flag on system quotes
+                    && request.resource.data.isDefault == resource.data.isDefault
+                    // Validate isPublic is boolean
+                    && request.resource.data.isPublic is bool;
 
       // Delete: Only the owner (creator) can delete
-      allow delete: if isQuoteOwner(resource.data);
+      // Also prevent deletion of system/default quotes
+      allow delete: if isQuoteOwner(resource.data)
+                    && resource.data.isDefault != true;
     }
 
     // --- Categories Collection ---

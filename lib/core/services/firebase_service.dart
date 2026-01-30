@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 
 /// Top-level background message handler required by FCM plugin.
 /// Must be a top-level function.
@@ -13,7 +14,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (message.notification != null) {
     // Example: print for debugging
     // ignore: avoid_print
-    print(
+    Logger.d(
       'Background message: ${message.messageId} ${message.notification!.title}',
     );
   }

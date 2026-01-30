@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dev_quotes/core/error/failures.dart';
 import 'package:dev_quotes/data/dto/category_dto.dart';
 import 'package:dev_quotes/data/dto/quote_dto.dart';
 import 'package:dev_quotes/data/dto/user_dto.dart';
@@ -16,7 +18,7 @@ abstract class FirestoreDataSource {
   Future<List<QuoteDto>> searchQuotes(String query);
   Future<String> addQuote(QuoteDto quote);
   Future<void> updateQuote(QuoteDto quote);
-  Future<void> deleteQuote(String quoteId);
+  Future<void> deleteQuote(String quoteId, String currentUserId);
   Stream<List<QuoteDto>> getUserQuotes(String userId);
   Stream<List<QuoteDto>> getPublicQuotes();
   Stream<List<QuoteDto>> getQuoteFeed(String userId, bool showPublic);
@@ -33,36 +35,69 @@ abstract class FirestoreDataSource {
 
 class FirestoreDataSourceImpl implements FirestoreDataSource {
   final FirebaseFirestore _firestore;
+  final Connectivity _connectivity;
 
-  FirestoreDataSourceImpl({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreDataSourceImpl({
+    FirebaseFirestore? firestore,
+    Connectivity? connectivity,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _connectivity = connectivity ?? Connectivity();
+
+  /// MEDIUM SECURITY FIX: Check if device is online before network operations
+  Future<bool> _isOnline() async {
+    final result = await _connectivity.checkConnectivity();
+    return !result.contains(ConnectivityResult.none);
+  }
+
+  /// MEDIUM SECURITY FIX: Wrapper for operations that require connectivity
+  Future<T> _withConnectivityCheck<T>(Future<T> Function() operation) async {
+    if (!await _isOnline()) {
+      throw const CacheFailure('No internet connection. Please check your network and try again.');
+    }
+    return operation();
+  }
 
   @override
   Future<void> saveUser(UserDto user) async {
-    await _firestore.collection('users').doc(user.id).set(user.toFirestore());
+    return _withConnectivityCheck(() async {
+      await _firestore.collection('users').doc(user.id).set(user.toFirestore());
+    });
   }
 
   @override
   Future<UserDto?> getUser(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) {
-      return UserDto.fromFirestore(doc);
-    }
-    return null;
+    return _withConnectivityCheck(() async {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return UserDto.fromFirestore(doc);
+      }
+      return null;
+    });
   }
 
   @override
   Future<void> updateUser(UserDto user) async {
-    await _firestore
-        .collection('users')
-        .doc(user.id)
-        .update(user.toFirestore());
+    return _withConnectivityCheck(() async {
+      await _firestore
+          .collection('users')
+          .doc(user.id)
+          .update(user.toFirestore());
+    });
   }
 
   @override
   Future<QuoteDto> getRandomQuote() async {
-    // Pull a larger set to ensure better randomness
-    final query = await _firestore.collection('quotes').limit(50).get();
+    // SECURITY FIX: Only fetch public/default quotes, not private ones
+    // This prevents exposing private quotes from other users
+    final query = await _firestore
+        .collection('quotes')
+        .where(Filter.or(
+          Filter('isPublic', isEqualTo: true),
+          Filter('isDefault', isEqualTo: true),
+        ))
+        .limit(50)
+        .get();
+    
     if (query.docs.isEmpty) throw Exception('No quotes found');
     final docs = List.from(query.docs);
     docs.shuffle();
@@ -116,10 +151,26 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
 
   @override
   Future<List<QuoteDto>> searchQuotes(String queryText) async {
+    // SECURITY FIX: Sanitize and validate input
+    final sanitized = queryText.trim();
+    
+    // Validate length
+    if (sanitized.isEmpty || sanitized.length > 100) {
+      return [];
+    }
+    
+    // Remove control characters that could affect query
+    final cleanQuery = sanitized.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
+    
+    if (cleanQuery.isEmpty) {
+      return [];
+    }
+
     final query = await _firestore
         .collection('quotes')
-        .where('quoteText', isGreaterThanOrEqualTo: queryText)
-        .where('quoteText', isLessThan: queryText + 'z')
+        .where('quoteText', isGreaterThanOrEqualTo: cleanQuery)
+        .where('quoteText', isLessThan: cleanQuery + '\uf8ff') // Unicode-safe
+        .limit(50) // SECURITY FIX: Add limit to prevent overfetching
         .get();
 
     return query.docs.map((doc) => QuoteDto.fromFirestore(doc)).toList();
@@ -266,46 +317,84 @@ class FirestoreDataSourceImpl implements FirestoreDataSource {
 
   @override
   Future<void> addFavorite(String userId, String quoteId) async {
-    await _firestore
+    final favoriteRef = _firestore
         .collection('favorites')
         .doc(userId)
         .collection('items')
-        .doc(quoteId)
-        .set({'addedAt': FieldValue.serverTimestamp()});
-        
-    // Increment user's favorites count
-    await _firestore.collection('users').doc(userId).update({
-      'favoritesCount': FieldValue.increment(1),
+        .doc(quoteId);
+    final userRef = _firestore.collection('users').doc(userId);
+
+    // Use transaction to prevent race conditions
+    await _firestore.runTransaction((transaction) async {
+      final favoriteDoc = await transaction.get(favoriteRef);
+      
+      if (favoriteDoc.exists) {
+        // Already favorited, no-op
+        return;
+      }
+      
+      transaction.set(favoriteRef, {'addedAt': FieldValue.serverTimestamp()});
+      transaction.update(userRef, {'favoritesCount': FieldValue.increment(1)});
     });
   }
 
   @override
   Future<void> removeFavorite(String userId, String quoteId) async {
-    await _firestore
+    final favoriteRef = _firestore
         .collection('favorites')
         .doc(userId)
         .collection('items')
-        .doc(quoteId)
-        .delete();
-        
-    // Decrement user's favorites count
-    await _firestore.collection('users').doc(userId).update({
-      'favoritesCount': FieldValue.increment(-1),
+        .doc(quoteId);
+    final userRef = _firestore.collection('users').doc(userId);
+
+    // Use transaction to prevent race conditions
+    await _firestore.runTransaction((transaction) async {
+      final favoriteDoc = await transaction.get(favoriteRef);
+      
+      if (!favoriteDoc.exists) {
+        // Not favorited, no-op
+        return;
+      }
+      
+      transaction.delete(favoriteRef);
+      transaction.update(userRef, {'favoritesCount': FieldValue.increment(-1)});
     });
   }
 
   @override
-  Future<void> deleteQuote(String quoteId) async {
-    final doc = await _firestore.collection('quotes').doc(quoteId).get();
-    if (doc.exists) {
-      final userId = doc.data()?['userId'] as String?;
-      await doc.reference.delete();
+  Future<void> deleteQuote(String quoteId, String currentUserId) async {
+    final docRef = _firestore.collection('quotes').doc(quoteId);
+    
+    // SECURITY FIX: Use transaction to verify ownership before deletion
+    await _firestore.runTransaction((transaction) async {
+      final doc = await transaction.get(docRef);
       
-      if (userId != null && userId.isNotEmpty) {
-        await _firestore.collection('users').doc(userId).update({
-          'quotesCount': FieldValue.increment(-1),
-        });
+      if (!doc.exists) {
+        throw Exception('Quote not found');
       }
-    }
+      
+      final data = doc.data() as Map<String, dynamic>;
+      final ownerId = data['userId'] as String?;
+      final isDefault = data['isDefault'] as bool? ?? false;
+      
+      // Verify ownership
+      if (ownerId != currentUserId) {
+        throw Exception('Not authorized to delete this quote');
+      }
+      
+      // Prevent deleting system/default quotes
+      if (isDefault) {
+        throw Exception('Cannot delete system quotes');
+      }
+      
+      transaction.delete(docRef);
+      
+      if (ownerId != null && ownerId.isNotEmpty) {
+        transaction.update(
+          _firestore.collection('users').doc(ownerId),
+          {'quotesCount': FieldValue.increment(-1)},
+        );
+      }
+    });
   }
 }

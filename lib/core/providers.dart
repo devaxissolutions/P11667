@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
 import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
@@ -30,8 +31,7 @@ final firestoreProvider = Provider<FirebaseFirestore>(
 );
 final googleSignInProvider = Provider<GoogleSignIn>((ref) {
   return GoogleSignIn(
-    serverClientId:
-        '958725673026-q173iglhhef0av7tbo402uttr61sc7d2.apps.googleusercontent.com',
+    serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID']!,
   );
 });
 final firebaseMessagingProvider = Provider<FirebaseMessaging>(
@@ -64,7 +64,12 @@ final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
 });
 
 final firestoreDataSourceProvider = Provider<FirestoreDataSource>((ref) {
-  return FirestoreDataSourceImpl(firestore: ref.watch(firestoreProvider));
+  return FirestoreDataSourceImpl(
+    firestore: ref.watch(firestoreProvider),
+    connectivity: ref.watch(connectivityProvider).value?.first != null 
+        ? Connectivity() 
+        : null,
+  );
 });
 
 final localDataSourceProvider = Provider<LocalDataSource>((ref) {
@@ -89,6 +94,7 @@ final quoteRepositoryProvider = Provider<QuoteRepository>((ref) {
   return QuoteRepositoryImpl(
     firestoreDataSource: ref.watch(firestoreDataSourceProvider),
     localDataSource: ref.watch(localDataSourceProvider),
+    rateLimitService: ref.watch(rateLimitServiceProvider),
   );
 });
 
@@ -106,7 +112,7 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 });
 
 final updateServiceProvider = Provider<UpdateService>((ref) {
-  return UpdateService();
+  return UpdateService.instance;
 });
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {

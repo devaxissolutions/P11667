@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/theme.dart';
 import 'core/widgets/update_dialog.dart';
 import 'routes/app_router.dart';
 
 import 'package:dev_quotes/core/providers.dart';
 import 'package:dev_quotes/core/services/notifications/notification_service.dart';
+import 'package:dev_quotes/core/utils/logger.dart';
 import 'package:dev_quotes/core/utils/seed_data.dart';
 import 'package:dev_quotes/firebase_options.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dev_quotes/core/services/update_service.dart';
+import 'package:dev_quotes/core/services/session_service.dart';
 
 // Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
 
   // Declare startupTrace variable
   Trace? startupTrace;
@@ -28,6 +35,13 @@ void main() async {
     // Initialize Firebase with generated options
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // MEDIUM SECURITY FIX: Activate Firebase App Check
+    // This prevents unauthorized API usage even if API keys are exposed
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.debug, // Use playIntegrity in production
+      appleProvider: AppleProvider.debug, // Use appAttest in production
     );
 
     // Enable Firebase Performance Monitoring
@@ -39,8 +53,11 @@ void main() async {
 
     // Register background handler for Firebase Messaging
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    
+    // MEDIUM SECURITY FIX: Initialize session management
+    SessionService().initialize();
   } catch (e) {
-    debugPrint('Firebase init failed: $e');
+    Logger.d('Firebase init failed: $e');
   }
 
   final prefs = await SharedPreferences.getInstance();
@@ -66,7 +83,7 @@ Future<void> _initializeBackgroundTasks(
     try {
       await NotificationService().initialize();
     } catch (e) {
-      debugPrint('Notification service init failed: $e');
+      Logger.d('Notification service init failed: $e');
     }
 
     // Check connectivity before seeding
@@ -87,15 +104,15 @@ Future<void> _initializeBackgroundTasks(
           await prefs.setBool('db_seeded', true);
         }
         await prefs.setBool('db_seeded_universal_v1', true);
-        debugPrint('✅ Database categories updated successfully');
+        Logger.d('✅ Database categories updated successfully');
       } catch (e) {
-        debugPrint('❌ Error seeding database: $e');
+        Logger.d('❌ Error seeding database: $e');
       }
     } else if (!hasSeeded && !hasInternet) {
-      debugPrint('ℹ️ Skip seeding: No internet connection');
+      Logger.d('ℹ️ Skip seeding: No internet connection');
     }
   } catch (e) {
-    debugPrint('Background init error: $e');
+    Logger.d('Background init error: $e');
   } finally {
     // Stop startup trace after initialization is complete
     if (startupTrace != null) {

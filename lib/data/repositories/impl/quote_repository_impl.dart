@@ -1,4 +1,5 @@
 import 'package:dev_quotes/core/error/failures.dart';
+import 'package:dev_quotes/core/services/rate_limit_service.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
@@ -9,12 +10,15 @@ import 'package:dev_quotes/data/repositories/interfaces/quote_repository.dart';
 class QuoteRepositoryImpl implements QuoteRepository {
   final FirestoreDataSource _firestoreDataSource;
   final LocalDataSource _localDataSource;
+  final RateLimitService? _rateLimitService;
 
   QuoteRepositoryImpl({
     required FirestoreDataSource firestoreDataSource,
     required LocalDataSource localDataSource,
+    RateLimitService? rateLimitService,
   }) : _firestoreDataSource = firestoreDataSource,
-       _localDataSource = localDataSource;
+       _localDataSource = localDataSource,
+       _rateLimitService = rateLimitService;
 
   @override
   Future<Result<Quote>> getRandomQuote() async {
@@ -68,10 +72,24 @@ class QuoteRepositoryImpl implements QuoteRepository {
 
   @override
   Future<Result<String>> addQuote(Quote quote) async {
+    // HIGH SECURITY FIX: Add rate limiting to prevent spam
+    if (_rateLimitService != null) {
+      final rateLimitKey = 'add_quote_${quote.userId}';
+      if (_rateLimitService!.isLocked(rateLimitKey)) {
+        return Error(RateLimitFailure(
+          'You are creating quotes too quickly. Please wait a moment.'
+        ));
+      }
+    }
+
     try {
       final id = await _firestoreDataSource.addQuote(
         QuoteMapper.fromDomain(quote),
       );
+      
+      // Record successful attempt for rate limiting
+      _rateLimitService?.recordAttempt('add_quote_${quote.userId}');
+      
       return Success(id);
     } catch (e) {
       return Error(ServerFailure(e.toString()));
@@ -89,9 +107,9 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
-  Future<Result<void>> deleteQuote(String quoteId) async {
+  Future<Result<void>> deleteQuote(String quoteId, String currentUserId) async {
     try {
-      await _firestoreDataSource.deleteQuote(quoteId);
+      await _firestoreDataSource.deleteQuote(quoteId, currentUserId);
       return const Success(null);
     } catch (e) {
       return Error(ServerFailure(e.toString()));
