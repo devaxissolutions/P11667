@@ -19,6 +19,14 @@ enum UpdateCheckResult {
   error,
 }
 
+/// Permission check result for update flow
+enum PermissionCheckResult {
+  granted,
+  denied,
+  permanentlyDenied,
+  error,
+}
+
 class UpdateService {
   static const String githubApiUrl =
       'https://api.github.com/repos/devaxissolutions/P11667/releases/latest';
@@ -149,6 +157,94 @@ class UpdateService {
     return null;
   }
 
+  /// Check all required permissions for update download and installation
+  /// Returns a map with overall result and detailed status for each permission
+  Future<Map<String, dynamic>> checkUpdatePermissions() async {
+    if (!Platform.isAndroid) {
+      return {
+        'allGranted': true,
+        'storage': PermissionCheckResult.granted,
+        'install': PermissionCheckResult.granted,
+      };
+    }
+
+    // Check storage permission (for Android < 11)
+    PermissionCheckResult storageResult;
+    try {
+      final storageStatus = await Permission.storage.status;
+      if (storageStatus.isGranted) {
+        storageResult = PermissionCheckResult.granted;
+      } else if (storageStatus.isPermanentlyDenied) {
+        storageResult = PermissionCheckResult.permanentlyDenied;
+      } else {
+        storageResult = PermissionCheckResult.denied;
+      }
+    } catch (e) {
+      Logger.e('Error checking storage permission', e);
+      storageResult = PermissionCheckResult.error;
+    }
+
+    // Check install unknown apps permission (for Android 8.0+)
+    PermissionCheckResult installResult;
+    try {
+      final installStatus = await Permission.requestInstallPackages.status;
+      if (installStatus.isGranted) {
+        installResult = PermissionCheckResult.granted;
+      } else if (installStatus.isPermanentlyDenied) {
+        installResult = PermissionCheckResult.permanentlyDenied;
+      } else {
+        installResult = PermissionCheckResult.denied;
+      }
+    } catch (e) {
+      Logger.e('Error checking install permission', e);
+      installResult = PermissionCheckResult.error;
+    }
+
+    final allGranted = storageResult == PermissionCheckResult.granted && 
+                       installResult == PermissionCheckResult.granted;
+
+    return {
+      'allGranted': allGranted,
+      'storage': storageResult,
+      'install': installResult,
+    };
+  }
+
+  /// Request all required permissions for update
+  /// Returns a map with 'success' boolean and detailed results
+  Future<Map<String, dynamic>> requestUpdatePermissions() async {
+    if (!Platform.isAndroid) {
+      return {'success': true};
+    }
+
+    final results = <String, dynamic>{};
+
+    // Request storage permission (for Android < 11)
+    try {
+      final storageStatus = await Permission.storage.request();
+      results['storage'] = storageStatus.isGranted;
+      results['storagePermanentlyDenied'] = storageStatus.isPermanentlyDenied;
+    } catch (e) {
+      Logger.e('Error requesting storage permission', e);
+      results['storage'] = false;
+      results['storageError'] = e.toString();
+    }
+
+    // Request install unknown apps permission (for Android 8.0+)
+    try {
+      final installStatus = await Permission.requestInstallPackages.request();
+      results['install'] = installStatus.isGranted;
+      results['installPermanentlyDenied'] = installStatus.isPermanentlyDenied;
+    } catch (e) {
+      Logger.e('Error requesting install permission', e);
+      results['install'] = false;
+      results['installError'] = e.toString();
+    }
+
+    results['success'] = (results['storage'] == true) && (results['install'] == true);
+    return results;
+  }
+
   /// Result of the download and install operation
   /// Returns a tuple-like map with 'success' and optional 'error' message
   Future<Map<String, dynamic>> downloadAndInstallUpdate(
@@ -156,6 +252,20 @@ class UpdateService {
     Function(double) onProgress,
     VoidCallback onCancel,
   ) async {
+    // First, check all required permissions
+    final permissionCheck = await checkUpdatePermissions();
+    if (!permissionCheck['allGranted']) {
+      return {
+        'success': false,
+        'error': _buildPermissionErrorMessage(permissionCheck),
+        'permissionDenied': true,
+        'storageDenied': permissionCheck['storage'] != PermissionCheckResult.granted,
+        'installDenied': permissionCheck['install'] != PermissionCheckResult.granted,
+        'storagePermanentlyDenied': permissionCheck['storage'] == PermissionCheckResult.permanentlyDenied,
+        'installPermanentlyDenied': permissionCheck['install'] == PermissionCheckResult.permanentlyDenied,
+      };
+    }
+
     String? downloadedFilePath;
     
     try {
@@ -198,15 +308,19 @@ class UpdateService {
       
       Logger.d('Download completed successfully');
 
-      // 3. After download completes, request install permission (Android)
+      // 3. After download completes, request install permission again (Android)
+      // Permissions might have been revoked during download
       if (Platform.isAndroid) {
-        final permissionResult = await _requestInstallPermission();
-        if (!permissionResult['granted']) {
+        final permissionResult = await checkUpdatePermissions();
+        if (!permissionResult['allGranted']) {
           return {
             'success': false,
-            'error': permissionResult['error'] ?? 'Install permission denied',
+            'error': _buildPermissionErrorMessage(permissionResult),
             'permissionDenied': true,
-            'permanentlyDenied': permissionResult['permanentlyDenied'] ?? false,
+            'storageDenied': permissionResult['storage'] != PermissionCheckResult.granted,
+            'installDenied': permissionResult['install'] != PermissionCheckResult.granted,
+            'storagePermanentlyDenied': permissionResult['storage'] == PermissionCheckResult.permanentlyDenied,
+            'installPermanentlyDenied': permissionResult['install'] == PermissionCheckResult.permanentlyDenied,
           };
         }
       }
@@ -233,62 +347,31 @@ class UpdateService {
     }
   }
 
-  /// Request the install packages permission on Android
-  /// Returns a map with 'granted' boolean and optional 'error' message
-  Future<Map<String, dynamic>> _requestInstallPermission() async {
-    try {
-      // Check current permission status
-      var status = await Permission.requestInstallPackages.status;
-      Logger.d('Current install permission status: $status');
-
-      if (status.isGranted) {
-        return {'granted': true};
-      }
-
-      // If permanently denied, we need to open settings
-      if (status.isPermanentlyDenied) {
-        Logger.d('Install permission is permanently denied');
-        return {
-          'granted': false,
-          'error': 'Permission to install apps is permanently denied. Please enable it in Settings.',
-          'permanentlyDenied': true,
-        };
-      }
-
-      // Request permission
-      Logger.d('Requesting install permission...');
-      status = await Permission.requestInstallPackages.request();
-      Logger.d('Permission request result: $status');
-
-      if (status.isGranted) {
-        return {'granted': true};
-      }
-
-      // Check if now permanently denied after request
-      if (status.isPermanentlyDenied) {
-        return {
-          'granted': false,
-          'error': 'Permission to install apps was denied. Please enable it in Settings to install updates.',
-          'permanentlyDenied': true,
-        };
-      }
-
-      return {
-        'granted': false,
-        'error': 'Permission to install apps was denied. The update cannot be installed without this permission.',
-        'permanentlyDenied': false,
-      };
-    } catch (e) {
-      Logger.d('Error requesting install permission: $e');
-      return {
-        'granted': false,
-        'error': 'Failed to request install permission: ${e.toString()}',
-      };
+  /// Build a user-friendly error message based on permission check results
+  String _buildPermissionErrorMessage(Map<String, dynamic> permissionCheck) {
+    final List<String> missingPermissions = [];
+    
+    if (permissionCheck['storage'] != PermissionCheckResult.granted) {
+      missingPermissions.add('Storage access');
     }
+    if (permissionCheck['install'] != PermissionCheckResult.granted) {
+      missingPermissions.add('Install unknown apps');
+    }
+    
+    if (missingPermissions.isEmpty) {
+      return 'Required permissions are missing.';
+    }
+    
+    return 'The following permissions are required: ${missingPermissions.join(', ')}. Please grant them in Settings.';
   }
 
-  /// Open app settings so user can manually enable the install permission
+  /// Open app settings so user can manually enable permissions
   Future<bool> openAppSettings() async {
-    return await Permission.requestInstallPackages.isGranted;
+    return await openAppSettings();
+  }
+
+  /// Open system settings for install unknown apps permission
+  Future<bool> openInstallSettings() async {
+    return await openAppSettings();
   }
 }

@@ -128,6 +128,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   size: releaseInfo['size'] ?? 0,
                   progressNotifier: progressNotifier,
                   onUpdate: () async {
+                    // First, check and request permissions before downloading
+                    final permissionCheck = await updateService.checkUpdatePermissions();
+                    
+                    if (!permissionCheck['allGranted']) {
+                      // Request permissions
+                      final requestResult = await updateService.requestUpdatePermissions();
+                      
+                      if (!requestResult['success']) {
+                        // Permission request failed
+                        final storagePermanentlyDenied = requestResult['storagePermanentlyDenied'] == true;
+                        final installPermanentlyDenied = requestResult['installPermanentlyDenied'] == true;
+                        
+                        if (storagePermanentlyDenied || installPermanentlyDenied) {
+                          // Show settings dialog for permanently denied permissions
+                          if (context.mounted) {
+                            _showPermissionDeniedDialog(
+                              context, 
+                              'Update requires Storage and Install permissions. Please enable them in Settings.',
+                            );
+                          }
+                        } else {
+                          // Show snackbar for regular denial
+                          if (context.mounted) {
+                            _showSnackBar(
+                              context, 
+                              'Update permissions are required to download and install updates.',
+                              isError: true,
+                            );
+                          }
+                        }
+                        return;
+                      }
+                    }
+                    
+                    // Permissions granted, proceed with download
                     final result = await updateService.downloadAndInstallUpdate(
                       releaseInfo['downloadUrl'],
                       (progress) {
@@ -148,10 +183,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       
                       // Handle permission denial specifically
                       if (result['permissionDenied'] == true) {
-                        final permanentlyDenied = result['permanentlyDenied'] == true;
+                        final storagePermanentlyDenied = result['storagePermanentlyDenied'] == true;
+                        final installPermanentlyDenied = result['installPermanentlyDenied'] == true;
                         final errorMessage = result['error'] as String? ?? 'Install permission denied';
                         
-                        if (permanentlyDenied) {
+                        if (storagePermanentlyDenied || installPermanentlyDenied) {
                           // Show dialog to open settings
                           _showPermissionDeniedDialog(context, errorMessage);
                         } else {
