@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:dev_quotes/core/utils/type_defs.dart';
+import 'package:dev_quotes/domain/repositories/profile_repository.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -21,14 +22,19 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class NotificationService {
-  static final NotificationService _instance = NotificationService._internal();
-  factory NotificationService() => _instance;
-  NotificationService._internal();
-
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseMessaging _messaging;
+  final FirebaseAuth _auth;
+  final ProfileRepository _profileRepository;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+
+  NotificationService({
+    required FirebaseMessaging messaging,
+    required FirebaseAuth auth,
+    required ProfileRepository profileRepository,
+  })  : _messaging = messaging,
+        _auth = auth,
+        _profileRepository = profileRepository;
 
   GlobalKey<NavigatorState>? _navigatorKey;
   String? _pendingNotificationPath;
@@ -72,7 +78,7 @@ class NotificationService {
     );
 
     await _localNotifications.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
@@ -151,21 +157,14 @@ class NotificationService {
   }
 
   Future<void> _updateUserToken(String token) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
-      try {
-        await _firestore.collection('users').doc(user.uid).update({
-          'fcmToken': token,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        // If update fails, try set with merge
-        await _firestore.collection('users').doc(user.uid).set({
-          'fcmToken': token,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      final result = await _profileRepository.updateFCMToken(user.uid, token);
+      if (result is Success) {
+        Logger.d('FCM token updated for user: ${user.uid}');
+      } else {
+        Logger.e('Failed to update FCM token', (result as Error).failure.message);
       }
-      Logger.d('FCM token updated for user: ${user.uid}');
     }
   }
 
@@ -247,31 +246,30 @@ class NotificationService {
     );
 
     await _localNotifications.show(
-      message.hashCode,
-      notification.title,
-      notification.body,
-      details,
+      id: message.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: details,
       payload: jsonEncode(message.data),
     );
   }
 
   // Method to update notification preferences
   Future<void> updateNotificationPreference(bool enabled) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
-      await _firestore.collection('users').doc(user.uid).update({
-        'preferences.notificationsEnabled': enabled,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _profileRepository.updateNotificationPreference(user.uid, enabled);
     }
   }
 
   // Method to get current notification preference
   Future<bool> getNotificationPreference() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      return doc.data()?['preferences']?['notificationsEnabled'] ?? true;
+      final result = await _profileRepository.getNotificationPreference(user.uid);
+      if (result is Success) {
+        return (result as Success).data;
+      }
     }
     return true;
   }
