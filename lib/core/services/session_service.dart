@@ -8,19 +8,22 @@ class SessionService {
   static const Duration _tokenRefreshInterval = Duration(hours: 1);
   static const Duration _sessionTimeout = Duration(hours: 24);
   
+  final FirebaseAuth _auth;
   Timer? _refreshTimer;
   DateTime? _sessionStartTime;
+
+  SessionService({required FirebaseAuth auth}) : _auth = auth;
   
   /// Initialize session management
   void initialize() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
       _sessionStartTime = DateTime.now();
       _startTokenRefresh(user);
     }
     
     // Listen for auth state changes
-    FirebaseAuth.instance.authStateChanges().listen((user) {
+    _auth.authStateChanges().listen((user) {
       if (user != null) {
         _sessionStartTime = DateTime.now();
         _startTokenRefresh(user);
@@ -41,7 +44,7 @@ class SessionService {
           final sessionDuration = DateTime.now().difference(_sessionStartTime!);
           if (sessionDuration > _sessionTimeout) {
             Logger.w('Session timeout reached, signing out');
-            await FirebaseAuth.instance.signOut();
+            await _auth.signOut();
             return;
           }
         }
