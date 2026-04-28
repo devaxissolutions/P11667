@@ -11,15 +11,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isQuoteOwner(resourceData) {
-      return isAuthenticated() && request.auth.uid == resourceData.userId;
-    }
-
     // --- Users Collection ---
     match /users/{userId} {
       // SECURITY: Only authenticated users can read user profiles
       // Users can read their own full profile, others can only see public fields
-      allow read: if isAuthenticated();
+      allow read: if isOwner(userId);
       
       // Only the user can create or update their own profile.
       // Validate that the document ID matches the auth UID.
@@ -36,88 +32,52 @@ service cloud.firestore {
 
     // --- Quotes Collection ---
     match /quotes/{quoteId} {
-      // Public read access for quotes based on visibility
+      // Consolidated read rule for quotes
       // Allow if:
-      // 1. Quote is explicitly marked public
-      // 2. OR Quote is owned by the requester
-      // 3. OR Quote is marked as default/system
-      // Note: Existing quotes without these fields might need migration or default assumption in client code. 
-      // Rules enforce strict checking on existing fields. 
-      allow read: if (resource.data.keys().hasAny(['isPublic']) && resource.data.isPublic == true)
-                  || (resource.data.keys().hasAny(['isDefault']) && resource.data.isDefault == true)
-                  || isQuoteOwner(resource.data)
-                  // Fallback for migration: if fields missing, assume public? 
-                  // Safe approach: Assume public for MVP backward compatibility IF fields missing.
-                  // BUT user requested STRICT control. So let's be strict: if missing, assume public (legacy) or private?
-                  // "Private quotes of other users are never returned" -> Risk of legacy data being private.
-                  // Start conservative: If fields missing, assume PUBLIC (legacy behavior), but new quotes MUST respect flags.
-                  || (!resource.data.keys().hasAny(['isPublic']) && !resource.data.keys().hasAny(['userId'])); // Just legacy public assumption if truly untracked.
-                  // Actually, let's simplify for the requested logic:
-                  // "Private quotes of other users are never returned"
-                  // We will rely on query constraints matching these rules.
-                  // Correct Strict Rule:
-                  // allow read: if resource.data.isPublic == true || resource.data.isDefault == true || request.auth.uid == resource.data.userId;
-                  // Handling missing fields for legacy:
-                  // allow read: if resource.data.get('isPublic', true) == true || resource.data.get('isDefault', false) == true || request.auth.uid == resource.data.userId;
-      
-      // Require authentication for all reads
+      // 1. Quote is public (defaults to true for legacy/public quotes)
+      // 2. OR Quote is a system default
+      // 3. OR Quote is owned by system
+      // 4. OR User is the owner
+      // 5. OR User has this quote in their favorites
       allow read: if isAuthenticated() 
-                  && (resource.data.get('isPublic', true) == true 
-                      || resource.data.get('isDefault', false) == true 
-                      || request.auth.uid == resource.data.userId);
+                  && (
+                    resource == null ||
+                    resource.data.get('isPublic', true) == true || 
+                    resource.data.get('isDefault', false) == true || 
+                    resource.data.get('userId', '') == 'system' ||
+                    resource.data.get('userId', '') == request.auth.uid ||
+                    exists(/databases/$(database)/documents/favorites/$(request.auth.uid)/items/$(quoteId))
+                  );
 
-      // Create: Authenticated users can create quotes
+      // Create: Authenticated users can create quotes for themselves
       allow create: if isAuthenticated() 
-                    // Validate basic schema
-                    && request.resource.data.keys().hasAll(['quoteText', 'author', 'category', 'userId', 'timestamp'])
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.quoteText is string
-                    && request.resource.data.quoteText.size() > 0
-                    && request.resource.data.quoteText.size() < 500
-                    && request.resource.data.author is string
-                    && request.resource.data.category is string;
+                    && request.resource.data.quoteText.size() > 0;
 
-      // Update: Only the owner (creator) can update
-      allow update: if isQuoteOwner(resource.data)
-                    // Ensure ownership doesn't change
-                    && request.resource.data.userId == resource.data.userId
-                    // Validate updated data schema
-                    && request.resource.data.keys().hasAll(['quoteText', 'author', 'category', 'userId', 'timestamp'])
-                    && request.resource.data.quoteText is string
-                    && request.resource.data.quoteText.size() > 0
-                    && request.resource.data.quoteText.size() < 500
-                    && request.resource.data.author is string
-                    && request.resource.data.author.size() > 0
-                    && request.resource.data.author.size() < 100
-                    && request.resource.data.category is string
-                    && request.resource.data.category.size() > 0
-                    && request.resource.data.timestamp is timestamp
-                    // Prevent modifying isDefault flag on system quotes
-                    && request.resource.data.isDefault == resource.data.isDefault
-                    // Validate isPublic is boolean
-                    && request.resource.data.isPublic is bool;
-
-      // Delete: Only the owner (creator) can delete
-      // Also prevent deletion of system/default quotes
-      allow delete: if isQuoteOwner(resource.data)
-                    && resource.data.isDefault != true;
+      // Update/Delete: Only the owner can modify, and cannot delete system quotes
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == resource.data.userId;
+      
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid
+                    && resource.data.get('isDefault', false) != true;
     }
 
     // --- Categories Collection ---
     match /categories/{categoryId} {
-      // Public read access
       allow read: if true;
-      
-      // Allow authenticated users to write to categories (for seeding purposes)
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     // --- Favorites Collection ---
     // Structure: /favorites/{userId}/items/{quoteId}
-    match /favorites/{userId}/items/{quoteId} {
-      // Only the user can read/write their own favorites
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId);
+    match /favorites/{userId} {
+      // Allow user to read/write their own favorites root and sub-collections
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      
+      match /items/{quoteId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
   }
 }
