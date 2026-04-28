@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dev_quotes/core/services/offline/offline_sync_service.dart';
+import 'package:dev_quotes/domain/entities/sync_status.dart';
 import 'package:dev_quotes/core/theme/colors.dart';
 
 /// Widget that displays the current sync status
