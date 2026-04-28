@@ -10,6 +10,7 @@ abstract class LocalDataSource {
   Future<QuoteDto?> getLastQuote();
   Future<void> cacheFavorites(List<String> ids);
   Future<List<String>> getFavorites();
+  Future<void> clearCache();
 }
 
 class LocalDataSourceImpl implements LocalDataSource {
@@ -57,5 +58,12 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<List<String>> getFavorites() async {
     return _sharedPreferences.getStringList(CACHED_FAVORITES) ?? [];
+  }
+
+  @override
+  Future<void> clearCache() async {
+    await _sharedPreferences.remove(CACHED_USER);
+    await _sharedPreferences.remove(CACHED_QUOTE);
+    await _sharedPreferences.remove(CACHED_FAVORITES);
   }
 }

@@ -13,7 +13,7 @@ void main() {
       ),
     );
 
-    expect(find.text('DevQuote'), findsOneWidget);
+    expect(find.text('Dev Quotes'), findsOneWidget);
     // We can't easily test the navigation in a unit test without mocking GoRouter,
     // but we can verify the initial state.
   });

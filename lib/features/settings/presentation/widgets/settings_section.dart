@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/colors.dart';
 
 class SettingsSection extends StatelessWidget {
   final String title;
@@ -22,7 +23,7 @@ class SettingsSection extends StatelessWidget {
             child: Text(
               title,
               style: GoogleFonts.outfit(
-                color: const Color(0xFF8B5CF6),
+                color: AppColors.primary,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.0,
@@ -31,7 +32,7 @@ class SettingsSection extends StatelessWidget {
           ),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E24),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
@@ -39,6 +40,7 @@ class SettingsSection extends StatelessWidget {
             children: children,
           ),
         ),
+        const SizedBox(height: 24),
       ],
     );
   }

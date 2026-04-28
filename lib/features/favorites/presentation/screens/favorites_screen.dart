@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../quotes/presentation/providers/quote_provider.dart';
-import '../../../quotes/presentation/widgets/quote_card.dart';
+import 'package:dev_quotes/core/widgets/quote_card.dart';
 
 class FavoritesScreen extends ConsumerWidget {
   const FavoritesScreen({super.key});
@@ -119,7 +119,7 @@ class FavoritesScreen extends ConsumerWidget {
                                   .read(quotesProvider.notifier)
                                   .toggleFavorite(quote);
                             },
-                            child: QuoteCard(
+                            child: CoreQuoteCard(
                               quote: quote,
                               trailing: IconButton(
                                 icon: const Icon(

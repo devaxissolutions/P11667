@@ -1,5 +1,5 @@
 import 'package:dev_quotes/data/dto/user_dto.dart';
-import 'package:dev_quotes/data/models/user_model.dart';
+import 'package:dev_quotes/domain/entities/user.dart';
 
 class UserMapper {
   static User toDomain(UserDto dto) {

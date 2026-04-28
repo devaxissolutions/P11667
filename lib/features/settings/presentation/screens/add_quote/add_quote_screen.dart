@@ -3,10 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dev_quotes/core/theme/colors.dart';
-import '../../../../../core/providers.dart';
-import '../../../../../core/services/notifications/notification_service.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import '../../../../../core/utils/type_defs.dart';
-import '../../../../../data/models/quote_model.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
 import '../../../../auth/controllers/auth_controller.dart';
 import '../../../../auth/models/auth_state.dart';
 import '../../../../quotes/presentation/providers/quote_provider.dart';
@@ -96,7 +95,7 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
       if (result is Success<String>) {
         final quoteId = result.data;
         // Send notification
-        await NotificationService().sendNewQuoteNotification(
+        await ref.read(notificationServiceProvider).sendNewQuoteNotification(
           quoteId,
           newQuote.text,
           newQuote.author,
@@ -306,7 +305,7 @@ class _AddQuoteScreenState extends ConsumerState<AddQuoteScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.all(24),
                 itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final category = categories[index];
                   final isSelected = category == _selectedCategory;

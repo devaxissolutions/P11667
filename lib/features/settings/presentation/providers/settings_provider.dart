@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/providers.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import '../../../auth/controllers/auth_controller.dart';
 import '../../../auth/models/auth_state.dart';
 
@@ -39,14 +39,14 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final authAsync = ref.read(authProvider);
     final authState = authAsync.value;
     if (authState is AuthAuthenticated) {
-      final firestore = ref.read(firestoreDataSourceProvider);
+      final userDataSource = ref.read(userDataSourceProvider);
       try {
-        showPublicQuotes = await firestore.getUserPreference(
+        showPublicQuotes = await userDataSource.getUserPreference(
           authState.user.id,
           'showPublicQuotes',
           showPublicQuotes,
         );
-        final notificationsFromFirestore = await firestore.getUserPreference(
+        final notificationsFromFirestore = await userDataSource.getUserPreference(
           authState.user.id,
           'notificationsEnabled',
           notificationsEnabled,
@@ -101,9 +101,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final authAsync = ref.read(authProvider);
     final authState = authAsync.value;
     if (authState is AuthAuthenticated) {
-      final firestore = ref.read(firestoreDataSourceProvider);
+      final userDataSource = ref.read(userDataSourceProvider);
       try {
-        await firestore.setUserPreference(
+        await userDataSource.setUserPreference(
           authState.user.id,
           'showPublicQuotes',
           value,
@@ -122,11 +122,11 @@ class SettingsNotifier extends Notifier<SettingsState> {
       final authAsync = ref.read(authProvider);
       final authState = authAsync.value;
       
-      final firestore = ref.read(firestoreDataSourceProvider);
+      final userDataSource = ref.read(userDataSourceProvider);
       final notificationService = ref.read(notificationServiceProvider);
 
       if (authState is AuthAuthenticated) {
-        await firestore.setUserPreference(
+        await userDataSource.setUserPreference(
           authState.user.id,
           'notificationsEnabled',
           value,
@@ -136,7 +136,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
           // If enabled, ensure we have the token synced
           final token = await notificationService.getFCMToken();
           if (token != null) {
-            await firestore.updateUserFCMToken(authState.user.id, token);
+            await userDataSource.updateUserFCMToken(authState.user.id, token);
           }
         }
       }

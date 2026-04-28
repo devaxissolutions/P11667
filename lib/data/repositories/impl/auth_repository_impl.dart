@@ -2,29 +2,29 @@ import 'package:dev_quotes/core/error/failures.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:dev_quotes/core/utils/logger.dart';
 import 'package:dev_quotes/data/datasources/auth_remote_data_source.dart';
-import 'package:dev_quotes/data/datasources/firestore_data_source.dart';
+import 'package:dev_quotes/data/datasources/user_data_source.dart';
 import 'package:dev_quotes/data/datasources/local_data_source.dart';
 import 'package:dev_quotes/core/services/rate_limit_service.dart';
 import 'package:dev_quotes/data/dto/user_dto.dart';
 import 'package:dev_quotes/data/mappers/user_mapper.dart';
-import 'package:dev_quotes/data/models/user_model.dart';
-import 'package:dev_quotes/data/repositories/interfaces/auth_repository.dart';
+import 'package:dev_quotes/domain/entities/user.dart';
+import 'package:dev_quotes/domain/repositories/auth_repository.dart';
 import 'package:dev_quotes/features/auth/utils/auth_exception_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _authDataSource;
-  final FirestoreDataSource _firestoreDataSource;
+  final UserDataSource _userDataSource;
   final LocalDataSource _localDataSource;
   final RateLimitService _rateLimitService;
 
   AuthRepositoryImpl({
     required AuthRemoteDataSource authDataSource,
-    required FirestoreDataSource firestoreDataSource,
+    required UserDataSource userDataSource,
     required LocalDataSource localDataSource,
     required RateLimitService rateLimitService,
   }) : _authDataSource = authDataSource,
-       _firestoreDataSource = firestoreDataSource,
+       _userDataSource = userDataSource,
        _localDataSource = localDataSource,
        _rateLimitService = rateLimitService;
 
@@ -36,13 +36,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       final credential = await _authDataSource.login(email, password);
-      
-      // HIGH SECURITY FIX: Handle null user properly
       if (credential.user == null) {
         return const Error(AuthFailure('Authentication failed'));
       }
       
-      final userDto = await _firestoreDataSource.getUser(credential.user!.uid);
+      final userDto = await _userDataSource.getUser(credential.user!.uid);
       if (userDto != null) {
         await _localDataSource.cacheUser(userDto);
         _rateLimitService.clearAttempts('login');
@@ -52,15 +50,12 @@ class AuthRepositoryImpl implements AuthRepository {
       }
     } catch (e, stackTrace) {
       _rateLimitService.recordAttempt('login');
-      
-      // HIGH SECURITY FIX: Log detailed error internally, return generic message to user
       Logger.e('Login failed', e, stackTrace);
       
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
       } else {
-        // Return generic message to prevent information disclosure
         message = 'Authentication failed. Please try again.';
       }
       return Error(AuthFailure(message));
@@ -84,21 +79,18 @@ class AuthRepositoryImpl implements AuthRepository {
         email: email,
         username: username,
       );
-      await _firestoreDataSource.saveUser(newUser);
+      await _userDataSource.saveUser(newUser);
       await _localDataSource.cacheUser(newUser);
       _rateLimitService.clearAttempts('signup');
       return Success(UserMapper.toDomain(newUser));
     } catch (e, stackTrace) {
       _rateLimitService.recordAttempt('signup');
-      
-      // HIGH SECURITY FIX: Log detailed error internally, return generic message to user
       Logger.e('Signup failed', e, stackTrace);
       
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
       } else {
-        // Return generic message to prevent information disclosure
         message = 'Registration failed. Please try again.';
       }
       return Error(AuthFailure(message));
@@ -109,7 +101,6 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<void>> logout() async {
     try {
       await _authDataSource.logout();
-      // Clear local cache if needed, or keep it.
       return const Success(null);
     } catch (e) {
       String message;
@@ -127,17 +118,15 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final currentUser = _authDataSource.currentUser;
       if (currentUser != null) {
-        // Try to get from local first for speed
         final localUser = await _localDataSource.getLastUser();
         if (localUser != null && localUser.id == currentUser.uid) {
-          // Background refresh
-          _firestoreDataSource.getUser(currentUser.uid).then((remoteUser) {
+          _userDataSource.getUser(currentUser.uid).then((remoteUser) {
             if (remoteUser != null) _localDataSource.cacheUser(remoteUser);
           });
           return Success(UserMapper.toDomain(localUser));
         }
 
-        final userDto = await _firestoreDataSource.getUser(currentUser.uid);
+        final userDto = await _userDataSource.getUser(currentUser.uid);
         if (userDto != null) {
           await _localDataSource.cacheUser(userDto);
           return Success(UserMapper.toDomain(userDto));
@@ -159,36 +148,31 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<User>> signInWithGoogle() async {
     try {
       final credential = await _authDataSource.signInWithGoogle();
-      
-      // HIGH SECURITY FIX: Handle null user properly
       if (credential.user == null) {
         return const Error(AuthFailure('Google authentication failed'));
       }
       
-      var userDto = await _firestoreDataSource.getUser(credential.user!.uid);
+      var userDto = await _userDataSource.getUser(credential.user!.uid);
 
       if (userDto == null) {
-        // New Google User
         userDto = UserDto(
           id: credential.user!.uid,
           email: credential.user!.email ?? '',
           username: credential.user!.displayName ?? 'User',
           photoUrl: credential.user!.photoURL,
         );
-        await _firestoreDataSource.saveUser(userDto);
+        await _userDataSource.saveUser(userDto);
       }
 
       await _localDataSource.cacheUser(userDto);
       return Success(UserMapper.toDomain(userDto));
     } catch (e, stackTrace) {
-      // HIGH SECURITY FIX: Log detailed error internally, return generic message to user
       Logger.e('Google sign-in failed', e, stackTrace);
       
       String message;
       if (e is firebase.FirebaseAuthException) {
         message = AuthExceptionHandler.handleFirebaseAuthException(e);
       } else {
-        // Return generic message to prevent information disclosure
         message = 'Google sign-in failed. Please try again.';
       }
       return Error(AuthFailure(message));
@@ -253,12 +237,11 @@ class AuthRepositoryImpl implements AuthRepository {
     return _authDataSource.authStateChanges.asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
       try {
-        final userDto = await _firestoreDataSource.getUser(firebaseUser.uid);
+        final userDto = await _userDataSource.getUser(firebaseUser.uid);
         if (userDto != null) {
           await _localDataSource.cacheUser(userDto);
           return UserMapper.toDomain(userDto);
         } else {
-          // If not in Firestore, try local cache
           final cached = await _localDataSource.getLastUser();
           if (cached != null && cached.id == firebaseUser.uid) {
             return UserMapper.toDomain(cached);
@@ -266,7 +249,6 @@ class AuthRepositoryImpl implements AuthRepository {
           return null;
         }
       } catch (e) {
-        // Offline or error, use cache
         final cached = await _localDataSource.getLastUser();
         if (cached != null && cached.id == firebaseUser.uid) {
           return UserMapper.toDomain(cached);
@@ -274,5 +256,33 @@ class AuthRepositoryImpl implements AuthRepository {
         return null;
       }
     });
+  }
+
+  @override
+  Future<Result<void>> deleteAccount() async {
+    final currentUser = _authDataSource.currentUser;
+    if (currentUser == null) {
+      return const Error(AuthFailure('No user logged in'));
+    }
+
+    try {
+      final uid = currentUser.uid;
+
+      // 1. Delete user data from Firestore
+      await _userDataSource.deleteUser(uid);
+
+      // 2. Delete Firebase Auth user
+      // Note: This may fail if the user has not signed in recently.
+      // In a real app, you would handle re-authentication here.
+      await _authDataSource.deleteAccount();
+
+      // 3. Clear local cache
+      await _localDataSource.clearCache();
+
+      return const Success(null);
+    } catch (e) {
+      Logger.e('Account deletion failed', e);
+      return Error(AuthFailure(e.toString()));
+    }
   }
 }

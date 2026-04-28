@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:dev_quotes/core/providers.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
-import 'package:dev_quotes/data/models/category_model.dart';
-import 'package:dev_quotes/data/models/quote_model.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
+import 'package:dev_quotes/domain/entities/category.dart';
 import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
 import 'package:dev_quotes/features/auth/models/auth_state.dart';
 import 'package:dev_quotes/features/settings/presentation/providers/settings_provider.dart';
@@ -38,42 +38,33 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
   Future<void> loadQuotes(bool showPublicQuotes, AuthState? authState) async {
     try {
       state = const AsyncValue.loading();
-      final repository = ref.read(quoteRepositoryProvider);
-
-      if (authState is! AuthAuthenticated) {
-        // If not authenticated, show public quotes
-        final publicQuotes = await PerfService.trace(
-          "load_quotes_trace",
-          () async => await repository.getPublicQuotes().first.timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => <Quote>[],
-          ),
-        );
-        state = AsyncValue.data(
-          publicQuotes.take(10).toList(),
-        ); // Limit to 10 for home
-        return;
+      final getQuoteFeedUseCase = ref.read(getQuoteFeedUseCaseProvider);
+      
+      String userId = '';
+      if (authState is AuthAuthenticated) {
+        userId = authState.user.id;
       }
 
-      final userId = authState.user.id;
-      final quotesWrapper = await PerfService.trace(
+      final quotesStream = getQuoteFeedUseCase.execute(userId, showPublicQuotes);
+      
+      final quotes = await PerfService.trace(
         "load_quotes_feed_trace",
-        () async => await repository
-            .getQuoteFeed(userId, showPublicQuotes)
-            .first
-            .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]),
+        () async => await quotesStream.first.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => <Quote>[],
+        ),
       );
       
       // Fallback: If user has no quotes and default quotes are also missing, 
       // show public quotes regardless of setting.
-      if (quotesWrapper.isEmpty && !showPublicQuotes) {
-        final fallbackQuotes = await repository
-            .getQuoteFeed(userId, true)
+      if (quotes.isEmpty && !showPublicQuotes && userId.isNotEmpty) {
+        final fallbackQuotes = await getQuoteFeedUseCase
+            .execute(userId, true)
             .first
             .timeout(const Duration(seconds: 5), onTimeout: () => <Quote>[]);
         state = AsyncValue.data(fallbackQuotes.take(10).toList());
       } else {
-        state = AsyncValue.data(quotesWrapper.take(10).toList());
+        state = AsyncValue.data(quotes.take(10).toList());
       }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -83,34 +74,34 @@ class QuotesNotifier extends Notifier<AsyncValue<List<Quote>>> {
   Future<void> toggleFavorite(Quote quote) async {
     final authAsync = ref.read(authProvider);
     final authState = authAsync.value;
-    if (authState is! AuthAuthenticated) return; // Or prompt login
+    if (authState is! AuthAuthenticated) return;
 
-    final repository = ref.read(quoteRepositoryProvider);
+    final toggleFavoriteUseCase = ref.read(toggleFavoriteUseCaseProvider);
     final userId = authState.user.id;
 
     // Optimistic update
     state.whenData((quotes) {
       final updatedQuotes = quotes.map((q) {
         if (q.id == quote.id) {
-          return Quote(
-            id: q.id,
-            text: q.text,
-            author: q.author,
-            category: q.category,
-            userId: q.userId,
-            timestamp: q.timestamp,
-            isFavorite: !q.isFavorite,
-          );
+          return q.copyWith(isFavorite: !q.isFavorite);
         }
         return q;
       }).toList();
       state = AsyncValue.data(updatedQuotes);
     });
 
-    if (quote.isFavorite) {
-      await repository.removeFavorite(quote.id, userId);
-    } else {
-      await repository.addFavorite(quote.id, userId);
+    final result = await toggleFavoriteUseCase.execute(
+      quote.id,
+      userId,
+      quote.isFavorite,
+    );
+    
+    if (result is Error) {
+      // Revert on error
+      loadQuotes(
+        ref.read(settingsProvider).showPublicQuotes,
+        ref.read(authProvider).value,
+      );
     }
   }
 
@@ -198,37 +189,28 @@ final searchStatsProvider = NotifierProvider<SearchStatsNotifier, String>(
 
 final searchResultsProvider = FutureProvider<List<Quote>>((ref) async {
   final query = ref.watch(searchStatsProvider);
-  final repository = ref.watch(quoteRepositoryProvider);
+  if (query.isEmpty) return [];
+
+  final searchUseCase = ref.watch(searchQuotesUseCaseProvider);
 
   // Get favorites to check status
   final favoritesAsync = ref.watch(favoritesProvider);
   final favoriteIds = favoritesAsync.value?.map((q) => q.id).toSet() ?? {};
 
-  // Always fetch public quotes
-  final publicQuotesResult = await PerfService.trace(
+  final result = await PerfService.trace(
     "search_quotes_trace",
-    () async => await repository.getPublicQuotes().first,
+    () async => await searchUseCase.execute(query),
   );
 
-  // Filter client-side
-  List<Quote> filtered;
-  if (query.isEmpty) {
-    filtered = publicQuotesResult;
-  } else {
-    final lowerQuery = query.toLowerCase();
-    filtered = publicQuotesResult.where((quote) {
-      return quote.text.toLowerCase().contains(lowerQuery) ||
-          quote.author.toLowerCase().contains(lowerQuery) ||
-          quote.category.toLowerCase().contains(lowerQuery);
+  if (result is Success<List<Quote>>) {
+    return result.data.map((quote) {
+      return quote.copyWith(
+        isFavorite: favoriteIds.contains(quote.id),
+      );
     }).toList();
   }
-
-  // Update isFavorite status based on favorites list
-  return filtered.map((quote) {
-    return quote.copyWith(
-      isFavorite: favoriteIds.contains(quote.id),
-    );
-  }).toList();
+  
+  return [];
 });
 
 // Provider for single quote by ID

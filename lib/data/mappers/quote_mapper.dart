@@ -1,5 +1,5 @@
 import 'package:dev_quotes/data/dto/quote_dto.dart';
-import 'package:dev_quotes/data/models/quote_model.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
 import 'package:dev_quotes/core/utils/string_utils.dart';
 
 class QuoteMapper {

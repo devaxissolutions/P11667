@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
 import 'package:dev_quotes/features/auth/models/auth_state.dart';
-import 'package:dev_quotes/core/providers.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/auth/screens/auth_screen.dart';
@@ -190,7 +190,7 @@ class RouterNotifier extends ChangeNotifier {
   RouterNotifier(this._ref) {
     _ref.listen<AsyncValue<AuthState>>(
       authProvider,
-      (_, __) => notifyListeners(),
+      (_, _) => notifyListeners(),
     );
   }
 }

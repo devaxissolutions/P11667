@@ -1,4 +1,4 @@
-import 'package:dev_quotes/core/providers.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dev_quotes/core/performance/perf_service.dart';
@@ -26,6 +26,11 @@ class AuthNotifier extends StreamNotifier<AuthState> {
     } catch (e) {
       // Handle logout error if needed
     }
+  }
+
+  Future<Result<void>> deleteAccount() async {
+    final repository = ref.read(authRepositoryProvider);
+    return await repository.deleteAccount();
   }
 
   void updateUser(dynamic user) {

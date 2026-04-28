@@ -1,5 +1,5 @@
 import 'package:dev_quotes/data/dto/category_dto.dart';
-import 'package:dev_quotes/data/models/category_model.dart';
+import 'package:dev_quotes/domain/entities/category.dart';
 
 class CategoryMapper {
   static Category toDomain(CategoryDto dto) {

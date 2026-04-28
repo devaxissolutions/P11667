@@ -1,4 +1,4 @@
-import 'package:dev_quotes/core/services/offline/sync_operation.dart';
+import 'package:dev_quotes/data/services/offline/sync_operation.dart';
 import 'package:dev_quotes/core/utils/logger.dart';
 import 'package:hive/hive.dart';
 

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../quotes/presentation/providers/quote_provider.dart';
-import '../../../quotes/presentation/widgets/quote_card.dart';
+import 'package:dev_quotes/core/widgets/quote_card.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -128,7 +128,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   );
                 },
                 loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
             ),
             searchResults.when(
@@ -169,7 +169,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         final quote = quotes[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: QuoteCard(
+                          child: CoreQuoteCard(
                             quote: quote,
                             trailing: IconButton(
                               icon: Icon(

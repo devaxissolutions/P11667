@@ -1,4 +1,4 @@
-import 'package:dev_quotes/data/models/user_model.dart';
+import 'package:dev_quotes/domain/entities/user.dart';
 
 enum AuthMethod { none, email, signup, google, logout }
 

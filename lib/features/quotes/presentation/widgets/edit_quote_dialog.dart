@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
-import '../../../../data/models/quote_model.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
 import '../../../../core/utils/string_utils.dart';
 import '../providers/quote_provider.dart';
 

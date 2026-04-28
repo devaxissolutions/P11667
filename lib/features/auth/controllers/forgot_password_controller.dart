@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dev_quotes/core/providers.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
 
 // Forgot password state

@@ -6,6 +6,6 @@ void main() {
   testWidgets('App renders without crashing', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: DevQuoteApp()));
     await tester.pumpAndSettle();
-    expect(find.text('DevQuote Home Placeholder'), findsOneWidget);
+    expect(find.byType(DevQuoteApp), findsOneWidget);
   });
 }

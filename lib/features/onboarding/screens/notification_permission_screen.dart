@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/services/notifications/notification_service.dart';
 
-class NotificationPermissionScreen extends StatefulWidget {
+class NotificationPermissionScreen extends ConsumerStatefulWidget {
   final VoidCallback onEnableNotifications;
   final VoidCallback onSkip;
   final int currentPage;
@@ -20,13 +21,12 @@ class NotificationPermissionScreen extends StatefulWidget {
   });
 
   @override
-  State<NotificationPermissionScreen> createState() =>
+  ConsumerState<NotificationPermissionScreen> createState() =>
       _NotificationPermissionScreenState();
 }
 
 class _NotificationPermissionScreenState
-    extends State<NotificationPermissionScreen> {
-  final NotificationService _notificationService = NotificationService();
+    extends ConsumerState<NotificationPermissionScreen> {
   bool _isRequesting = false;
   bool _isPermanentlyDenied = false;
 
@@ -60,7 +60,7 @@ class _NotificationPermissionScreenState
         return;
       }
 
-      final granted = await _notificationService
+      final granted = await ref.read(notificationServiceProvider)
           .requestNotificationPermission();
 
       if (mounted) {

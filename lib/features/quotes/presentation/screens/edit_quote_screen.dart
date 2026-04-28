@@ -4,8 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/string_utils.dart';
-import '../../../../core/utils/type_defs.dart';
-import '../../../../data/models/quote_model.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
 import '../providers/quote_provider.dart';
 
 class EditQuoteScreen extends ConsumerStatefulWidget {
@@ -243,7 +242,7 @@ class _EditQuoteScreenState extends ConsumerState<EditQuoteScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.all(24),
                 itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final category = categories[index];
                   final isSelected = category == _selectedCategory;

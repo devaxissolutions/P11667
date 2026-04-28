@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:dev_quotes/core/theme/colors.dart';
-import 'package:dev_quotes/core/providers.dart';
-import 'package:dev_quotes/core/utils/string_utils.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import 'package:dev_quotes/core/utils/type_defs.dart';
-import 'package:dev_quotes/data/models/quote_model.dart';
+import 'package:dev_quotes/core/widgets/quote_card.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
 import 'package:dev_quotes/features/auth/controllers/auth_controller.dart';
 import 'package:dev_quotes/features/auth/models/auth_state.dart';
 import 'package:dev_quotes/features/quotes/presentation/providers/quote_provider.dart';
@@ -299,116 +299,19 @@ class _MyQuotesScreenState extends ConsumerState<MyQuotesScreen> {
   }
 
   Widget _buildQuoteCard(Quote quote) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E24),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
+    return CoreQuoteCard(
+      quote: quote,
+      onTap: () => _showQuoteOptions(quote),
+      trailing: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.05),
-          width: 1,
+          shape: BoxShape.circle,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => _showQuoteOptions(quote),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.format_quote_rounded,
-                      color: const Color(0xFF8B5CF6).withOpacity(0.5),
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (quote.category.isNotEmpty) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF8B5CF6).withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                quote.category,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8B5CF6),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-                          Text(
-                            normalizeQuoteString(quote.text),
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 16,
-                              height: 1.5,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 36),
-                        child: Text(
-                          "- ${normalizeQuoteString(quote.author)}",
-                          style: GoogleFonts.inter(
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.more_horiz_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        child: const Icon(
+          Icons.more_horiz_rounded,
+          color: Colors.white,
+          size: 16,
         ),
       ),
     );

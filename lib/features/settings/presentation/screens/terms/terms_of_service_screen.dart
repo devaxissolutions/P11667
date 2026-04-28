@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TermsOfServiceScreen extends StatelessWidget {
   const TermsOfServiceScreen({super.key});
@@ -68,7 +69,7 @@ class TermsOfServiceScreen extends StatelessWidget {
             const SizedBox(height: 40),
              Center(
               child: TextButton(
-                onPressed: () {},
+                onPressed: () => _launchEmail('legal@devquotes.com'),
                 child: Text(
                   'Contact Legal Team',
                   style: GoogleFonts.inter(
@@ -84,6 +85,21 @@ class TermsOfServiceScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _launchEmail(String email) async {
+    final Uri params = Uri(
+      scheme: 'mailto',
+      path: email,
+      query: 'subject=DevQuotes Legal Inquiry',
+    );
+    try {
+      if (await canLaunchUrl(params)) {
+        await launchUrl(params);
+      }
+    } catch (e) {
+      // Silently fail if mail app is not available
+    }
   }
 
   Widget _buildIntroCard() {

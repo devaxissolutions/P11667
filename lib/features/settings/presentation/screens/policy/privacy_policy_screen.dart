@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -53,7 +54,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildSection(
               number: '04',
               title: 'Third-Party Services',
-              content: 'We may use third-party services that collect, monitor and analyze data. These third-party service providers have their own privacy policies addressing how they use such information.',
+              content: 'We use third-party services from Google (Firebase) that collect, monitor and analyze data to improve app performance and stability:\n\n• Firebase Crashlytics: Collects crash reports and diagnostic data to help us fix bugs.\n• Firebase Performance Monitoring: Collects performance metrics to help us optimize the app experience.\n• Google Analytics for Firebase: Collects usage patterns to help us understand how the app is used.\n\nThese services may collect device identifiers and usage data according to their own privacy policies.',
             ),
             _buildSection(
               number: '05',
@@ -68,7 +69,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             const SizedBox(height: 40),
             Center(
               child: TextButton(
-                onPressed: () {},
+                onPressed: () => _launchEmail('support@devquotes.com'),
                 child: Text(
                   'Contact Support',
                   style: GoogleFonts.inter(
@@ -84,6 +85,21 @@ class PrivacyPolicyScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _launchEmail(String email) async {
+    final Uri params = Uri(
+      scheme: 'mailto',
+      path: email,
+      query: 'subject=DevQuotes Support Request',
+    );
+    try {
+      if (await canLaunchUrl(params)) {
+        await launchUrl(params);
+      }
+    } catch (e) {
+      // Silently fail if mail app is not available
+    }
   }
 
   Widget _buildLastUpdated() {

@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/providers.dart';
-import '../../../../core/theme/colors.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import '../../../../core/utils/string_utils.dart';
 import '../../../auth/controllers/auth_controller.dart';
 import '../../../auth/models/auth_state.dart';
 import '../../../quotes/presentation/providers/quote_provider.dart';
-import '../../../../data/models/quote_model.dart';
-import '../../../../data/models/user_model.dart';
+import 'package:dev_quotes/core/widgets/quote_card.dart';
+import 'package:dev_quotes/domain/entities/quote.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -221,7 +220,10 @@ class _HomeContentState extends State<_HomeContent> {
                       scale: value,
                       child: Opacity(
                         opacity: value,
-                        child: _QuoteCard(quote: quote),
+                        child: CoreQuoteCard(
+                          quote: quote,
+                          style: QuoteCardStyle.hero,
+                        ),
                       ),
                     ),
                   );
@@ -241,100 +243,7 @@ class _HomeContentState extends State<_HomeContent> {
   }
 }
 
-class _QuoteCard extends StatelessWidget {
-  final Quote quote;
-  const _QuoteCard({required this.quote});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E24),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B5CF6).withOpacity(0.1),
-            blurRadius: 40,
-            spreadRadius: 0,
-            offset: const Offset(0, 0),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
-            spreadRadius: -5,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 24,
-            left: 24,
-            child: Icon(
-              Icons.format_quote_rounded,
-              color: const Color(0xFF8B5CF6).withOpacity(0.2),
-              size: 64,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Text(
-                        normalizeQuoteString(quote.text),
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  "- ${normalizeQuoteString(quote.author)}",
-                  style: GoogleFonts.inter(
-                    color: Colors.grey[400],
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    quote.category,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8B5CF6),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ActionBar extends ConsumerWidget {
   final PageController controller;

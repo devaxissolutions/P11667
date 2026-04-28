@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../../core/theme/colors.dart';
-import '../../../../../core/providers.dart';
+import 'package:dev_quotes/di/service_locator.dart';
 import '../../../../../core/utils/type_defs.dart';
-import '../../../../../data/models/user_model.dart';
+import 'package:dev_quotes/domain/entities/user.dart';
 import '../../../../auth/controllers/auth_controller.dart';
 import '../../../../auth/models/auth_state.dart';
 import '../../../../quotes/presentation/providers/quote_provider.dart';
@@ -170,6 +170,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
   }
 
+  void _showDeleteAccountDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        title: Text(
+          'Delete Account',
+          style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'This action is permanent and will delete all your quotes, favorites, and profile data. Are you sure you want to proceed?',
+          style: GoogleFonts.inter(color: Colors.grey[400]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteAccount();
+            },
+            child: Text(
+              'Delete', 
+              style: GoogleFonts.inter(color: AppColors.error, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await ref.read(authProvider.notifier).deleteAccount();
+      if (result is Success) {
+        if (mounted) {
+          context.go('/auth');
+          _showSnackBar('Account deleted successfully');
+        }
+      } else if (result is Error) {
+        _showSnackBar((result as Error).failure.message, isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('An unexpected error occurred', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   bool _hasChanges() {
     return _nameController.text.trim() != _initialName ||
            _bioController.text.trim() != _initialBio;
@@ -204,13 +256,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final quotesCountString = myQuotes.when(
       data: (quotes) => '${quotes.length}',
       loading: () => '...',
-      error: (_, __) => '0',
+      error: (_, _) => '0',
     );
     
     final favoritesCountString = favorites.when(
       data: (quotes) => '${quotes.length}',
       loading: () => '...',
-      error: (_, __) => '0',
+      error: (_, _) => '0',
     );
 
     return Scaffold(
@@ -411,12 +463,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const SizedBox(height: 40),
                       
                       if (!_isEditing) ...[
+                        const SizedBox(height: 16),
                         TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.shield_outlined, size: 18, color: Colors.grey),
+                          onPressed: _showDeleteAccountDialog,
+                          icon: const Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.error),
                           label: Text(
-                            'Privacy & Security Settings',
-                            style: GoogleFonts.inter(color: Colors.grey, fontSize: 13),
+                            'Delete Account',
+                            style: GoogleFonts.inter(
+                              color: AppColors.error, 
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
