@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:958725673026:android:702c2101d615b6a34c5ddb",
         "android_client_info": {
-          "package_name": "com.devquote.dev_quote"
+          "package_name": "com.devaxissolutions.devquotes"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "958725673026-nd194unnb18s41k313todkpb2mmtlvca.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.devquote.dev_quote",
+            "package_name": "com.devaxissolutions.devquotes",
             "certificate_hash": "6adb0d18f942cae2d193a70c9172e757d5a3f632"
           }
         },
