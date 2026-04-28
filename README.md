@@ -8,12 +8,13 @@ A modern Flutter application for discovering, sharing, and managing inspirationa
 - **Quote Management**: View, add, edit, and delete quotes
 - **Categories**: Organize quotes by categories
 - **Favorites**: Save your favorite quotes for quick access
-- **Search**: Find quotes by keywords or categories
+- **Search**: Advanced server-side prefix search for authors, topics, or keywords
 - **Daily Quotes**: Receive daily inspirational quotes via notifications
 - **Profile Management**: Update your profile information
-- **Settings**: Customize app preferences, including theme and notifications
+- **Offline Support**: Robust offline-first architecture with Hive and Firestore persistence
+- **Resilient Sync**: Circuit breaker protected offline synchronization
 - **Onboarding**: Guided setup for new users
- - **Platforms**: Android and iOS only
+- **Platforms**: Android and iOS supported
 
 ## Screenshots
 
@@ -92,11 +93,16 @@ flutter build ios --release
 
 ```
 lib/
-├── core/                 # Core utilities, services, and widgets
-├── data/                 # Data layer (models, repositories, data sources)
-├── features/             # Feature modules (auth, quotes, settings, etc.)
-├── routes/               # App routing
-└── main.dart             # App entry point
+├── core/              # Truly generic (Logger, Theme, Failure classes, AppStyles)
+├── domain/            # Pure business logic (Entities, Repo Interfaces, Use Cases)
+├── data/              # Implementation details (DTOs, Mappers, Remote/Local DataSources)
+├── di/                # Dependency Injection (Riverpod providers)
+├── features/          # Feature modules (auth, quotes, search, settings, etc.)
+│   ├── [feature]/
+│   │   ├── presentation/  # UI (Screens, Widgets, Notifiers)
+│   │   └── controllers/   # Business logic adapters (if any)
+├── routes/            # App routing (GoRouter)
+└── main.dart          # App entry point and infrastructure setup
 ```
 
 ## Contributing
