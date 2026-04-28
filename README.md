@@ -13,7 +13,7 @@ A modern Flutter application for discovering, sharing, and managing inspirationa
 - **Profile Management**: Update your profile information
 - **Settings**: Customize app preferences, including theme and notifications
 - **Onboarding**: Guided setup for new users
-- **Multi-Platform**: Supports Android, iOS, Web, Linux, macOS, and Windows
+ - **Platforms**: Android and iOS only
 
 ## Screenshots
 
@@ -62,7 +62,7 @@ flutterfire configure
 
 5. For Google Sign-In:
    - Add SHA-1 fingerprint to Firebase (Android)
-   - Configure OAuth client IDs (iOS/Web)
+   - Configure OAuth client IDs (iOS)
 
 6. For push notifications:
    - Set up APNs for iOS
