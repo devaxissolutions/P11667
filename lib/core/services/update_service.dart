@@ -1,12 +1,9 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:pub_semver/pub_semver.dart';
-import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:open_file/open_file.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:dev_quotes/core/services/circuit_breaker.dart';
 import 'package:dev_quotes/core/utils/logger.dart';
 
@@ -49,6 +46,8 @@ class UpdateService {
     resetTimeout: const Duration(minutes: 5),
   );
 
+  Map<String, dynamic>? _latestReleaseCache;
+
   Future<UpdateCheckResult> isUpdateAvailable() async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
@@ -56,10 +55,11 @@ class UpdateService {
         return UpdateCheckResult.noInternet;
       }
 
-      // MEDIUM SECURITY FIX: Use circuit breaker for GitHub API call
+      // Use circuit breaker for GitHub API call
       final response = await _circuitBreaker.execute(() => _dio.get(githubApiUrl));
       if (response.statusCode == 200) {
         final data = response.data;
+        _latestReleaseCache = data;
         final latestTag = data['tag_name'] as String;
         final currentVersion = await _getCurrentVersion();
 
@@ -87,9 +87,23 @@ class UpdateService {
     return UpdateCheckResult.error;
   }
 
+  Future<Map<String, dynamic>?> getLatestReleaseInfo() async {
+    if (_latestReleaseCache == null) {
+      await isUpdateAvailable();
+    }
+
+    if (_latestReleaseCache != null) {
+      return {
+        'version': _latestReleaseCache!['tag_name'],
+        'releaseNotes': _latestReleaseCache!['body'],
+        'downloadUrl': _latestReleaseCache!['html_url'],
+      };
+    }
+    return null;
+  }
+
   Future<String> _getCurrentVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    // Use full version with build number if available (e.g. 1.2.0+5)
     if (packageInfo.buildNumber.isNotEmpty) {
       return '${packageInfo.version}+${packageInfo.buildNumber}';
     }
@@ -98,7 +112,6 @@ class UpdateService {
 
   bool _isVersionNewer(String latest, String current) {
     try {
-      // Remove 'v' prefix if present
       final cleanLatest = latest.startsWith('v') ? latest.substring(1) : latest;
       final cleanCurrent = current.startsWith('v') ? current.substring(1) : current;
 
@@ -130,248 +143,26 @@ class UpdateService {
     return false;
   }
 
-  Future<Map<String, dynamic>?> getLatestReleaseInfo() async {
-    try {
-      final response = await _dio.get(githubApiUrl);
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final assets = data['assets'] as List?;
-        if (assets != null && assets.isNotEmpty) {
-          final apkAsset = assets.firstWhere(
-            (asset) => (asset['name'] as String).endsWith('.apk'),
-            orElse: () => null,
-          );
-          if (apkAsset != null) {
-            return {
-              'version': data['tag_name'],
-              'downloadUrl': apkAsset['browser_download_url'],
-              'releaseNotes': data['body'] ?? '',
-              'size': apkAsset['size'] ?? 0,
-            };
-          }
-        }
-      }
-    } catch (e) {
-      Logger.d('Error fetching release info: $e');
-    }
-    return null;
-  }
+  /// Redirect to Play Store for updates
+  Future<void> launchPlayStore() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    final packageName = packageInfo.packageName;
+    final url = Uri.parse('market://details?id=$packageName');
+    final webUrl = Uri.parse('https://play.google.com/store/apps/details?id=$packageName');
 
-  /// Check all required permissions for update download and installation
-  /// Returns a map with overall result and detailed status for each permission
-  Future<Map<String, dynamic>> checkUpdatePermissions() async {
-    if (!Platform.isAndroid) {
-      return {
-        'allGranted': true,
-        'storage': PermissionCheckResult.granted,
-        'install': PermissionCheckResult.granted,
-      };
-    }
-
-    // Check storage permission (for Android < 11)
-    PermissionCheckResult storageResult;
     try {
-      final storageStatus = await Permission.storage.status;
-      if (storageStatus.isGranted) {
-        storageResult = PermissionCheckResult.granted;
-      } else if (storageStatus.isPermanentlyDenied) {
-        storageResult = PermissionCheckResult.permanentlyDenied;
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
       } else {
-        storageResult = PermissionCheckResult.denied;
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      Logger.e('Error checking storage permission', e);
-      storageResult = PermissionCheckResult.error;
+      Logger.e('Could not launch Play Store', e);
     }
-
-    // Check install unknown apps permission (for Android 8.0+)
-    PermissionCheckResult installResult;
-    try {
-      final installStatus = await Permission.requestInstallPackages.status;
-      if (installStatus.isGranted) {
-        installResult = PermissionCheckResult.granted;
-      } else if (installStatus.isPermanentlyDenied) {
-        installResult = PermissionCheckResult.permanentlyDenied;
-      } else {
-        installResult = PermissionCheckResult.denied;
-      }
-    } catch (e) {
-      Logger.e('Error checking install permission', e);
-      installResult = PermissionCheckResult.error;
-    }
-
-    final allGranted = storageResult == PermissionCheckResult.granted && 
-                       installResult == PermissionCheckResult.granted;
-
-    return {
-      'allGranted': allGranted,
-      'storage': storageResult,
-      'install': installResult,
-    };
-  }
-
-  /// Request all required permissions for update
-  /// Returns a map with 'success' boolean and detailed results
-  Future<Map<String, dynamic>> requestUpdatePermissions() async {
-    if (!Platform.isAndroid) {
-      return {'success': true};
-    }
-
-    final results = <String, dynamic>{};
-
-    // Request storage permission (for Android < 11)
-    try {
-      final storageStatus = await Permission.storage.request();
-      results['storage'] = storageStatus.isGranted;
-      results['storagePermanentlyDenied'] = storageStatus.isPermanentlyDenied;
-    } catch (e) {
-      Logger.e('Error requesting storage permission', e);
-      results['storage'] = false;
-      results['storageError'] = e.toString();
-    }
-
-    // Request install unknown apps permission (for Android 8.0+)
-    try {
-      final installStatus = await Permission.requestInstallPackages.request();
-      results['install'] = installStatus.isGranted;
-      results['installPermanentlyDenied'] = installStatus.isPermanentlyDenied;
-    } catch (e) {
-      Logger.e('Error requesting install permission', e);
-      results['install'] = false;
-      results['installError'] = e.toString();
-    }
-
-    results['success'] = (results['storage'] == true) && (results['install'] == true);
-    return results;
-  }
-
-  /// Result of the download and install operation
-  /// Returns a tuple-like map with 'success' and optional 'error' message
-  Future<Map<String, dynamic>> downloadAndInstallUpdate(
-    String downloadUrl,
-    Function(double) onProgress,
-    VoidCallback onCancel,
-  ) async {
-    // First, check all required permissions
-    final permissionCheck = await checkUpdatePermissions();
-    if (!permissionCheck['allGranted']) {
-      return {
-        'success': false,
-        'error': _buildPermissionErrorMessage(permissionCheck),
-        'permissionDenied': true,
-        'storageDenied': permissionCheck['storage'] != PermissionCheckResult.granted,
-        'installDenied': permissionCheck['install'] != PermissionCheckResult.granted,
-        'storagePermanentlyDenied': permissionCheck['storage'] == PermissionCheckResult.permanentlyDenied,
-        'installPermanentlyDenied': permissionCheck['install'] == PermissionCheckResult.permanentlyDenied,
-      };
-    }
-
-    String? downloadedFilePath;
-    
-    try {
-      // MEDIUM SECURITY FIX: Verify HTTPS and trusted domain
-      if (!downloadUrl.startsWith('https://')) {
-        return {
-          'success': false,
-          'error': 'Insecure download URL. Only HTTPS is allowed.',
-        };
-      }
-      
-      // Verify domain is trusted (GitHub)
-      final uri = Uri.parse(downloadUrl);
-      final trustedDomains = ['github.com', 'githubusercontent.com'];
-      final isTrusted = trustedDomains.any((domain) => uri.host.endsWith(domain));
-      if (!isTrusted) {
-        return {
-          'success': false,
-          'error': 'Untrusted download source.',
-        };
-      }
-      
-      // 1. Get temp directory
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'update_${DateTime.now().millisecondsSinceEpoch}.apk';
-      downloadedFilePath = '${tempDir.path}/$fileName';
-
-      // 2. Download APK first
-      Logger.d('Downloading APK to: $downloadedFilePath');
-      await _dio.download(
-        downloadUrl,
-        downloadedFilePath,
-        deleteOnError: true,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            onProgress(received / total);
-          }
-        },
-      );
-      
-      Logger.d('Download completed successfully');
-
-      // 3. After download completes, request install permission again (Android)
-      // Permissions might have been revoked during download
-      if (Platform.isAndroid) {
-        final permissionResult = await checkUpdatePermissions();
-        if (!permissionResult['allGranted']) {
-          return {
-            'success': false,
-            'error': _buildPermissionErrorMessage(permissionResult),
-            'permissionDenied': true,
-            'storageDenied': permissionResult['storage'] != PermissionCheckResult.granted,
-            'installDenied': permissionResult['install'] != PermissionCheckResult.granted,
-            'storagePermanentlyDenied': permissionResult['storage'] == PermissionCheckResult.permanentlyDenied,
-            'installPermanentlyDenied': permissionResult['install'] == PermissionCheckResult.permanentlyDenied,
-          };
-        }
-      }
-
-      // 4. Install APK
-      Logger.d('Installing APK from: $downloadedFilePath');
-      final result = await OpenFile.open(downloadedFilePath);
-      
-      if (result.type != ResultType.done) {
-        Logger.d('OpenFile error: ${result.message}');
-        return {
-          'success': false,
-          'error': 'Failed to open APK installer: ${result.message}',
-        };
-      }
-
-      return {'success': true};
-    } catch (e) {
-      Logger.d('Error downloading/installing update: $e');
-      return {
-        'success': false,
-        'error': 'Download failed: ${e.toString()}',
-      };
-    }
-  }
-
-  /// Build a user-friendly error message based on permission check results
-  String _buildPermissionErrorMessage(Map<String, dynamic> permissionCheck) {
-    final List<String> missingPermissions = [];
-    
-    if (permissionCheck['storage'] != PermissionCheckResult.granted) {
-      missingPermissions.add('Storage access');
-    }
-    if (permissionCheck['install'] != PermissionCheckResult.granted) {
-      missingPermissions.add('Install unknown apps');
-    }
-    
-    if (missingPermissions.isEmpty) {
-      return 'Required permissions are missing.';
-    }
-    
-    return 'The following permissions are required: ${missingPermissions.join(', ')}. Please grant them in Settings.';
   }
 
   /// Open app settings so user can manually enable permissions
   Future<bool> openAppSettings() async {
-    return await openAppSettings();
-  }
-
-  /// Open system settings for install unknown apps permission
-  Future<bool> openInstallSettings() async {
-    return await openAppSettings();
+    return await ph.openAppSettings();
   }
 }
